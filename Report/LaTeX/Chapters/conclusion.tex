@@ -1,0 +1,8 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+The field of one-step generative modeling has matured rapidly, evolving from the conceptual straight-path intuition of rectified flow to a rich ecosystem of theoretically grounded, empirically validated methods. We have traced this progression through four key methodological advances: consistency flow matching, which enforces straightness through velocity consistency; mean flows, which enable training from scratch via the average velocity identity; Align Your Flow, which scales distillation through continuous-time flow maps and autoguidance; and terminal velocity matching, which provides Wasserstein guarantees and architectural stability. Together, these methods represent a shift from simulation-based sampling to direct prediction of the transport map.
+
+Looking forward, several directions remain open. First, while current methods excel on image generation, extending them to high-dimensional modalities such as video and 3D remains challenging. Second, the theoretical understanding of stochastic flow maps and their posterior approximation quality is still developing. Third, the interplay between one-step generation and controllability---whether through classifiers, text prompts, or reward functions---presents both opportunities and challenges. The meta-flow map framework provides a promising starting point, but further work is needed to make reward alignment robust and scalable to billion-parameter models.
+
+Ultimately, the goal of one-step flow matching is not merely to accelerate sampling, but to retain the full generative power of diffusion and flow models while removing the computational barrier to real-world deployment. The methods surveyed here suggest that this goal is within reach.

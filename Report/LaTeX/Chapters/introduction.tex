@@ -1,0 +1,20 @@
+\section{Introduction}
+\label{sec:introduction}
+
+Generative modeling has undergone a profound transformation with the advent of diffusion models and their continuous-time counterparts, flow-based models \citep{ho2020denoising, song2020score, lipman2022flow}. These approaches construct a transport between a simple noise distribution and a complex data distribution by learning a time-dependent velocity field that governs the evolution of probability mass through an ordinary differential equation (ODE). While diffusion models have achieved state-of-the-art results in image synthesis, audio generation, and scientific simulation, they share a critical limitation: generating a single sample requires simulating the ODE through many time steps, each demanding a forward pass of a large neural network. For high-resolution image generation, this can translate to $50$--$1000$ function evaluations (NFEs), rendering real-time or interactive deployment impractical.
+
+This computational bottleneck has catalyzed a vibrant research effort toward one-step and few-step generative models. The central question is whether it is possible to distill the expensive many-step sampling process into a direct map that transports noise to data in a single neural network evaluation, while preserving the quality, diversity, and controllability of the original model. Early approaches to this problem, such as progressive distillation \citep{salimans2022progressive} and consistency models \citep{song2023consistency}, provided proof-of-concept results but struggled with scalability, multi-step degradation, or the need for pre-trained teachers.
+
+More recently, the field has converged on a unified perspective centered on \emph{flow matching} \citep{lipman2022flow, liu2022flow}, which frames generative modeling as the learning of a probability flow ODE. Within this framework, one-step methods can be understood as learning the \emph{flow map}---the integral operator that jumps between arbitrary times along the ODE---rather than the instantaneous velocity field. This shift from simulation to direct prediction is the defining theme of modern efficient generative modeling.
+
+\subsection{Scope and Contributions}
+
+This survey traces the development of one-step flow matching from its conceptual origins to the current state of the art. Our contributions are threefold:
+
+\begin{itemize}
+    \item We provide a unified narrative that connects rectified flow, flow matching, consistency models, and modern distillation techniques within a single mathematical framework.
+    \item We analyze four key methodological advances---consistency flow matching, mean flows, Align Your Flow, and terminal velocity matching---comparing their theoretical guarantees, training requirements, and empirical performance.
+    \item We discuss recent extensions to stochastic meta-flow maps, which extend the deterministic flow map formalism to reward alignment and inference-time control without costly trajectory rollouts.
+\end{itemize}
+
+The remainder of this survey is organized as follows. \Cref{sec:background} reviews the foundational concepts of rectified flow and flow matching. \Cref{sec:onestep} presents the four core methods for one-step generation. \Cref{sec:theory} provides theoretical analysis and error bounds. \Cref{sec:extensions} discusses reward alignment via meta-flow maps. \Cref{sec:conclusion} concludes with future directions.

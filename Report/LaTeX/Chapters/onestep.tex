@@ -1,0 +1,85 @@
+\section{One-Step Generative Modeling}
+\label{sec:onestep}
+
+Building on the flow matching framework, recent methods have developed increasingly sophisticated techniques for learning one-step or few-step generators. We discuss four representative approaches that span the spectrum from training from scratch to distillation from pre-trained models.
+
+\subsection{Consistency Flow Matching}
+\label{subsec:consistencyfm}
+
+Consistency Flow Matching (Consistency-FM) \citep{zhou2024consistency} proposes to enforce \emph{velocity consistency} along flow trajectories, directly defining straight flows without requiring optimal transport coupling or expensive transport plans.
+
+Given a flow trajectory $\gamma_x(t)$ with velocity $v(t, \gamma_x(t))$, the consistency condition requires the velocity to be constant along the trajectory:
+\begin{equation}
+    v(t, \gamma_x(t)) = v(s, \gamma_x(s)) \quad \forall t, s \in [0,1].
+\end{equation}
+This is equivalent to the trajectory condition $\gamma_x(t) + (1-t) v(t, \gamma_x(t)) = \gamma_x(s) + (1-s) v(s, \gamma_x(s))$, which implies that the quantity $f(t, x_t) = x_t + (1-t) v_\theta(t, x_t)$ is constant along the path. The training objective is:
+\begin{equation}
+    \mathcal{L}_\theta = \mathbb{E}_{t, x_t, x_{t+\Delta t}} \Big[ \| f_\theta(t, x_t) - f_{\theta^-}(t+\Delta t, x_{t+\Delta t}) \|^2 + \alpha \| v_\theta(t, x_t) - v_{\theta^-}(t+\Delta t, x_{t+\Delta t}) \|^2 \Big],
+\end{equation}
+where $\theta^-$ denotes an exponentially moving average of the parameters. The first term enforces consistency in the endpoint prediction, while the second term regularizes the velocity field.
+
+For complex distributions where a single straight path is insufficient, Consistency-FM introduces \emph{multi-segment training}, which divides the time interval $[0,1]$ into $K$ segments and learns a consistent velocity $v_\theta^i$ within each segment. This allows piece-wise linear trajectories that can better approximate curved transport paths.
+
+\subsection{Mean Flows}
+\label{subsec:meanflow}
+
+Mean Flow \citep{geng2025mean} addresses a fundamental limitation of previous methods: the reliance on pre-trained teacher models or expensive distillation pipelines. It proposes a principled framework for one-step generative modeling that can be trained from scratch.
+
+The key insight is to model the \emph{average velocity} rather than the instantaneous velocity. For a trajectory $z_t$, the average velocity between times $r$ and $t$ is defined as:
+\begin{equation}
+    u(z_t, r, t) = \frac{1}{t-r} \int_r^t v(z_\tau, \tau) \, d\tau.
+\end{equation}
+Differentiating the definition $(t-r)u = \int_r^t v \, d\tau$ with respect to $t$ yields the \emph{MeanFlow Identity}:
+\begin{equation}
+    u(z_t, r, t) = v(z_t, t) - (t-r) \frac{d}{dt} u(z_t, r, t),
+\end{equation}
+where the total derivative $\frac{d}{dt} u = v \cdot \partial_z u + \partial_t u$ is computed efficiently as a Jacobian-Vector Product (JVP).
+
+The training objective regresses the network prediction $u_\theta$ against the target derived from the MeanFlow Identity:
+\begin{equation}
+    \mathcal{L}(\theta) = \mathbb{E} \| u_\theta(z_t, r, t) - \text{sg}(v(z_t, t) - (t-r)(v(z_t, t) \cdot \partial_z u_\theta + \partial_t u_\theta)) \|^2,
+\end{equation}
+where $\text{sg}$ denotes the stop-gradient operator. Importantly, MeanFlow trains entirely from scratch without distillation or curriculum learning, and achieves state-of-the-art results: FID 3.43 with a single function evaluation on ImageNet 256$\times$256.
+
+\subsection{Align Your Flow}
+\label{subsec:ayf}
+
+Align Your Flow (AYF) \citep{sabour2025align} focuses on scaling continuous-time flow map distillation to high-resolution image generation. AYF begins with a critical theoretical observation: standard consistency models are inherently flawed for multi-step sampling because their objective of predicting clean outputs from any noise level inevitably leads to error accumulation.
+
+AYF resolves this by learning the general \emph{flow map} $f_\theta(x_t, t, s)$ that maps from any time $t$ to any time $s$ along the teacher's probability flow ODE. Two novel training objectives are proposed:
+
+\textbf{AYF-Eulerian Map Distillation (AYF-EMD)} ensures that for a fixed target time $s$, the flow map output remains constant as the starting point $(x_t, t)$ moves along the teacher ODE. The gradient converges to:
+\begin{equation}
+    \nabla_\theta \mathbb{E}_{x_t, t, s} \Big[ w(t,s) \| f_\theta(x_t, t, s) - f_{\theta^-}(x_{t'}, t', s) \|^2 \Big],
+\end{equation}
+where $x_{t'}$ is obtained by one Euler step on the teacher ODE.
+
+\textbf{AYF-Lagrangian Map Distillation (AYF-LMD)} ensures the tangent of the flow map matches the teacher velocity. The gradient converges to:
+\begin{equation}
+    \nabla_\theta \mathbb{E}_{x_t, t, s} \Big[ w(t,s) \| \partial_t f_\theta(x_t, t, s) - v_{\theta^-}(f_\theta(x_t, t, s), t, s) \|^2 \Big],
+\end{equation}
+where $v_{s,t}(x) = (f_{s,t}(x) - x) / (t-s)$ is the average velocity.
+
+AYF further introduces two practical techniques: \emph{autoguidance}, where a low-quality guidance model is distilled alongside the main model to improve sample quality, and \emph{adversarial finetuning}, which boosts sharpness with minimal loss in diversity.
+
+\subsection{Terminal Velocity Matching}
+\label{subsec:tvm}
+
+Terminal Velocity Matching (TVM) \citep{zhou2025terminal} provides a generalization of flow matching that directly learns the ODE integral while offering strong theoretical guarantees. Instead of matching time derivatives at the initial time, TVM matches them at the \emph{terminal time} of trajectories.
+
+Define the displacement map $f(x_t, t, s) = \int_t^s u(x_r, r) \, dr$. The terminal velocity condition states:
+\begin{equation}
+    \frac{d}{ds} f(x_t, t, s) = u(\psi(x_t, t, s), s),
+\end{equation}
+where $\psi$ is the flow map. The key theorem shows that the terminal velocity error upper-bounds the displacement error:
+\begin{equation}
+    \mathcal{L}_{\text{displ}}^t(\theta) \leq \int_0^t \mathbb{E}_{x_t} \Big[ \| \frac{d}{ds} f_\theta(x_t, t, s) - u(\psi(x_t, t, s), s) \|^2 \Big] \, ds.
+\end{equation}
+
+This leads to the training objective:
+\begin{equation}
+    \mathcal{L}_{\text{TVM}}^{t,s} = \mathbb{E} \Big[ \underbrace{\| \frac{d}{ds} f_\theta(x_t, t, s) - u_{\theta_{\text{sg}}^*}(x_t + f_{\theta_{\text{sg}}}(x_t, t, s), s) \|^2}_{\text{terminal velocity}} + \underbrace{\| u_\theta(x_s, s) - v_s \|^2}_{\text{flow matching}} \Big],
+\end{equation}
+where the first term ensures correct terminal velocity and the second term ensures the instantaneous velocity field matches the data. TVM achieves 3.29 FID with 1 NFE and 1.99 FID with 4 NFEs on ImageNet 256$\times$256.
+
+A critical practical challenge is that diffusion transformers lack Lipschitz continuity, which destabilizes training. TVM addresses this with minimal architectural changes: RMSNorm-based QK-normalization, time embedding normalization, and a fused Flash Attention kernel supporting backward passes on Jacobian-Vector Products.

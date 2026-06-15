@@ -1,0 +1,33 @@
+\section{Background}
+\label{sec:background}
+
+Before diving into one-step methods, we review the two foundational ideas that underpin the entire field: rectified flow, which introduced the concept of straightening transport paths, and flow matching, which provided the unified mathematical framework.
+
+\subsection{Rectified Flow}
+\label{subsec:rectified}
+
+Rectified flow \citep{liu2022flow} is a surprisingly simple approach to learning ODE models that transport between two empirically observed distributions $\pi_0$ and $\pi_1$. The core idea is to learn the ODE to follow \emph{straight paths} connecting points drawn from $\pi_0$ and $\pi_1$ as much as possible. This is achieved by solving a straightforward nonlinear least squares problem.
+
+Given an initial coupling of $x_0 \sim \pi_0$ and $x_1 \sim \pi_1$ (typically the independent coupling), the straight-line path is defined as $x_t = (1-t) x_0 + t x_1$ for $t \in [0,1]$, with conditional velocity $u_t = x_1 - x_0$. The rectified flow is learned by regressing a neural network $v_\theta(x_t, t)$ to match this velocity:
+\begin{equation}
+    \mathcal{L}_{\text{RF}} = \mathbb{E}_{t, x_0, x_1} \| v_\theta(x_t, t) - (x_1 - x_0) \|^2.
+\end{equation}
+
+This yields the \emph{1-rectified flow}. After training, one simulates the ODE from $t=0$ to $t=1$ using the learned velocity field to obtain new endpoint pairs $(x_0, \hat{x}_1)$, forming a new deterministic coupling $\pi_{01}^{(1)}$. Training on this new coupling yields the \emph{2-rectified flow}, whose paths are straighter. Recursively applying this procedure gives $k$-rectified flows. When the flow becomes perfectly straight (i.e., the velocity is constant along each trajectory), a single Euler step gives exact transport.
+
+The key insight of rectified flow is that straight paths are special because they are the shortest paths between two points and can be simulated exactly without time discretization. However, the multi-stage nature of rectification (train, simulate, re-train) is computationally expensive and motivates the single-stage methods discussed in \Cref{sec:onestep}.
+
+\subsection{Flow Matching}
+\label{subsec:flowmatching}
+
+Flow matching (FM) \citep{lipman2022flow} generalizes the rectified flow approach into a unified framework for training continuous normalizing flows (CNFs). The key innovation is a simulation-free training objective based on regressing vector fields of fixed conditional probability paths.
+
+Given data $x_1 \sim p_1$ and noise $x_0 \sim p_0$, FM defines a conditional path $x_t = \alpha_t x_0 + \beta_t x_1$ with velocity $u_t = \dot{\alpha}_t x_0 + \dot{\beta}_t x_1$. The marginal velocity field $v(t, x_t)$ is the expectation of $u_t$ over all $(x_0, x_1)$ pairs consistent with $x_t$, which is intractable. FM solves this by using the \emph{conditional flow matching} objective:
+\begin{equation}
+    \mathcal{L}_{\text{CFM}} = \mathbb{E}_{t, x_0, x_1} \| v_\theta(x_t, t) - u_t \|^2,
+\end{equation}
+which has the same gradient as the intractable marginal objective but is computationally efficient. The minimizer of this loss equals the true marginal velocity field.
+
+A particularly important choice is the \emph{optimal transport (OT) path}, where $\alpha_t = 1-t$ and $\beta_t = t$. This yields $x_t = (1-t) x_0 + t x_1$ and a constant conditional velocity $u_t = x_1 - x_0$. These paths are straight, minimize transport cost, and have been shown to provide faster training, better generalization, and higher sample quality than diffusion-based curved paths \citep{lipman2022flow, liu2022flow}.
+
+Flow matching thus provides the mathematical backbone for all subsequent methods: it defines the probability flow ODE that one-step methods seek to compress, and the conditional velocity objective that underlies both standard and one-step training.
