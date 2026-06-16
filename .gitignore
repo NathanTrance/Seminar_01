@@ -1,0 +1,16 @@
+# LaTeX compilation artifacts
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fdb_latexmk
+*.fls
+
+# Generated PDFs in build directory
+Report/LaTeX/build/
+
+# Main generated PDF (uncomment if you want to ignore output)
+# Report/LaTeX/main.pdf

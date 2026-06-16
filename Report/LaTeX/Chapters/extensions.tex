@@ -3,7 +3,7 @@
 
 Beyond unconditional generation, a critical frontier for generative models is the ability to align samples with user-specified rewards or constraints. This task is computationally expensive because it requires estimating the value function $V_t(x) = \log \mathbb{E}[e^{r(X_1)} | X_t = x]$, which in turn demands samples from the conditional posterior $p_{1|t}(x_1 | x_t)$. Traditional methods require costly trajectory rollouts to obtain these posterior samples.
 
-Meta Flow Maps (MFMs) \citep{potaptchik2025meta} address this by extending the deterministic flow map formalism into the \emph{stochastic regime}. A stochastic flow map is defined as a transformation that maps an exogenous noise source $\epsilon$ and an intermediate state $(t, x)$ directly to a sample $x_1 \sim p_{1|t}(\cdot | x)$. By varying the noise input, the map can generate arbitrarily many i.i.d. draws from the posterior in a single step.
+Meta Flow Maps (MFMs) \citep{potaptchik2026meta} address this by extending the deterministic flow map formalism into the \emph{stochastic regime}. A stochastic flow map is defined as a transformation that maps an exogenous noise source $\epsilon$ and an intermediate state $(t, x)$ directly to a sample $x_1 \sim p_{1|t}(\cdot | x)$. By varying the noise input, the map can generate arbitrarily many i.i.d. draws from the posterior in a single step.
 
 \subsection{Training Meta Flow Maps}
 
@@ -40,3 +40,12 @@ These estimators enable two paradigms of control:
 \end{itemize}
 
 Empirically, MFMs achieve competitive sample quality while markedly reducing computation for both steering and fine-tuning, outperforming Best-of-1000 baselines on ImageNet across multiple reward functions at a fraction of the compute.
+
+\input{Pseudocode/meta_flow_maps.tex}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.8\linewidth]{Figures/figure_meta_flow_maps.pdf}
+  \caption{Placeholder: Diagram of a Meta Flow Map showing how a single noise input $\epsilon$ and an intermediate state $(t, x)$ are mapped to a posterior sample $x_1 \sim p_{1|t}(\cdot | x)$. Replace with a figure illustrating the stochastic flow map and reward alignment pipeline.}
+  \label{fig:placeholder-meta-flow-maps}
+\end{figure}

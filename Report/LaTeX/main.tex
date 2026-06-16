@@ -1,6 +1,9 @@
 \documentclass{article}
 
-\usepackage{neurips_2026}
+\usepackage[main, final]{neurips_2026}
+\makeatletter
+\renewcommand{\@noticestring}{}
+\makeatother
 
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -15,20 +18,33 @@
 \usepackage{amssymb}
 \usepackage{graphicx}
 \usepackage{cleveref}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
 
-\title{One-Step Flow Matching: From Rectified Flows to Meta Flow Maps}
+\title{A Survey on One-Step Flow Matching: From Consistency Models to Meta Flow Maps}
 
 \author{%
-  Your Name \\
-  Your Institution \\
-  Your Department \\
-  Your City, Your Country \\
-  \texttt{your.email@example.com} \\
+  Nhat H. Tran \\
+  Hanoi University of Science and Technology\\
+  Hanoi, Vietnam \\
+  \texttt{nhat.th261124m@sis.hust.edu.vn} \\
+  % examples of more authors
+  \And
+  Luong T. Nguyen \\
+  Hanoi University of Science and Technology\\
+  Hanoi, Vietnam \\
+  \texttt{luong.nt252743m@sis.hust.edu.vn} \\
+  \And
+  Alisa S. Hamidova \\
+  Hanoi University of Science and Technology\\
+  Hanoi, Vietnam \\
+  \texttt{nhat.th261124m@sis.hust.edu.vn} \\
 }
 
 \begin{document}
 
 \maketitle
+\thispagestyle{plain}
 
 \input{Chapters/abstract}
 

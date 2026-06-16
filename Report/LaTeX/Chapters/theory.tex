@@ -28,10 +28,17 @@ Within this framework:
     \item \textbf{Standard Flow Matching} corresponds to learning the instantaneous velocity $v_{u,u}(x)$, i.e., the flow map in the infinitesimal limit.
     \item \textbf{Consistency Models} correspond to learning the flow map with $s=0$ (the endpoint map), collapsing the full trajectory to a single prediction.
     \item \textbf{Consistency Trajectory Models} and \textbf{Mean Flows} correspond to learning the flow map for arbitrary $s, t$ but with specific parameterizations of the average velocity.
-    \item \textbf{AYF} and \textbf{TVM} are direct attempts to learn the general flow map $X_{s,t}$ for all time pairs.
+    \item \textbf{AYF} and \textbf{TVM} are direct attempts to learn the general flow map $X_{s,t}$ for all time pairs, with additional theoretical guarantees on distributional error.
 \end{itemize}
 
 This unification reveals that the apparent diversity of methods in the literature is in fact a progression along a single mathematical axis: the scope of the time interval over which the flow map is learned.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.8\linewidth]{Figures/figure_theory.pdf}
+  \caption{Placeholder: Illustration of the flow map formalism $X_{s,t}$ and how different methods correspond to learning the map over different time intervals. Replace with a figure showing the semigroup property and tangent conditions.}
+  \label{fig:placeholder-theory}
+\end{figure}
 
 \subsection{Limitations of Consistency Models}
 

@@ -20,6 +20,15 @@ where $\theta^-$ denotes an exponentially moving average of the parameters. The 
 
 For complex distributions where a single straight path is insufficient, Consistency-FM introduces \emph{multi-segment training}, which divides the time interval $[0,1]$ into $K$ segments and learns a consistent velocity $v_\theta^i$ within each segment. This allows piece-wise linear trajectories that can better approximate curved transport paths.
 
+\input{Pseudocode/consistency_fm.tex}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.8\linewidth]{Figures/figure_consistency_fm.pdf}
+  \caption{Placeholder: Illustration of Consistency Flow Matching velocity consistency. Replace with a figure showing the multi-segment training scheme.}
+  \label{fig:placeholder-consistency-fm}
+\end{figure}
+
 \subsection{Mean Flows}
 \label{subsec:meanflow}
 
@@ -40,6 +49,15 @@ The training objective regresses the network prediction $u_\theta$ against the t
     \mathcal{L}(\theta) = \mathbb{E} \| u_\theta(z_t, r, t) - \text{sg}(v(z_t, t) - (t-r)(v(z_t, t) \cdot \partial_z u_\theta + \partial_t u_\theta)) \|^2,
 \end{equation}
 where $\text{sg}$ denotes the stop-gradient operator. Importantly, MeanFlow trains entirely from scratch without distillation or curriculum learning, and achieves state-of-the-art results: FID 3.43 with a single function evaluation on ImageNet 256$\times$256.
+
+\input{Pseudocode/mean_flows.tex}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.8\linewidth]{Figures/figure_mean_flows.pdf}
+  \caption{Placeholder: Illustration of the MeanFlow Identity and average velocity. Replace with a figure showing how JVP computes the total derivative.}
+  \label{fig:placeholder-mean-flows}
+\end{figure}
 
 \subsection{Align Your Flow}
 \label{subsec:ayf}
@@ -62,10 +80,19 @@ where $v_{s,t}(x) = (f_{s,t}(x) - x) / (t-s)$ is the average velocity.
 
 AYF further introduces two practical techniques: \emph{autoguidance}, where a low-quality guidance model is distilled alongside the main model to improve sample quality, and \emph{adversarial finetuning}, which boosts sharpness with minimal loss in diversity.
 
+\input{Pseudocode/align_your_flow.tex}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.8\linewidth]{Figures/figure_align_your_flow.pdf}
+  \caption{Placeholder: Illustration of AYF-Eulerian and Lagrangian distillation. Replace with a figure showing the flow map matching the teacher ODE.}
+  \label{fig:placeholder-align-your-flow}
+\end{figure}
+
 \subsection{Terminal Velocity Matching}
 \label{subsec:tvm}
 
-Terminal Velocity Matching (TVM) \citep{zhou2025terminal} provides a generalization of flow matching that directly learns the ODE integral while offering strong theoretical guarantees. Instead of matching time derivatives at the initial time, TVM matches them at the \emph{terminal time} of trajectories.
+Terminal Velocity Matching (TVM) \citep{zhou2026terminal} provides a generalization of flow matching that directly learns the ODE integral while offering strong theoretical guarantees. Instead of matching time derivatives at the initial time, TVM matches them at the \emph{terminal time} of trajectories.
 
 Define the displacement map $f(x_t, t, s) = \int_t^s u(x_r, r) \, dr$. The terminal velocity condition states:
 \begin{equation}
@@ -83,3 +110,12 @@ This leads to the training objective:
 where the first term ensures correct terminal velocity and the second term ensures the instantaneous velocity field matches the data. TVM achieves 3.29 FID with 1 NFE and 1.99 FID with 4 NFEs on ImageNet 256$\times$256.
 
 A critical practical challenge is that diffusion transformers lack Lipschitz continuity, which destabilizes training. TVM addresses this with minimal architectural changes: RMSNorm-based QK-normalization, time embedding normalization, and a fused Flash Attention kernel supporting backward passes on Jacobian-Vector Products.
+
+\input{Pseudocode/terminal_velocity.tex}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.8\linewidth]{Figures/figure_terminal_velocity.pdf}
+  \caption{Placeholder: Illustration of Terminal Velocity Matching at the endpoint. Replace with a figure showing the displacement map and Wasserstein bound.}
+  \label{fig:placeholder-terminal-velocity}
+\end{figure}

@@ -1,0 +1,16 @@
+\begin{algorithm}[t]
+\caption{MeanFlow Training}
+\label{alg:mean_flows}
+\begin{algorithmic}[1]
+\Require Data $x$, noise $\epsilon$, average-velocity network $u_\theta$, optimizer
+\State Sample $r, t \sim \text{Uniform}(0,1)$ with $r < t$
+\State $z_t \gets (1 - t) \, x + t \, \epsilon$ \Comment{Interpolant}
+\State $v \gets \epsilon - x$ \Comment{Instantaneous conditional velocity}
+\State $u_{\text{pred}} \gets u_\theta(z_t, r, t)$
+\State Compute JVP: $(v, 1) \cdot \nabla u_\theta(z_t, r, t)$ \Comment{Total derivative $\frac{d}{dt} u$}
+\State $u_{\text{tgt}} \gets v - (t - r) \cdot \frac{d}{dt} u$ \Comment{MeanFlow Identity}
+\State $\mathcal{L} \gets \| u_{\text{pred}} - \text{sg}(u_{\text{tgt}}) \|^2$
+\State Update $\theta$ with $\nabla_\theta \mathcal{L}$
+\State \Return $\mathcal{L}$
+\end{algorithmic}
+\end{algorithm}
