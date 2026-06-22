@@ -27,9 +27,9 @@ Flow matching thus provides the training backbone for all subsequent methods in 
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=0.8\linewidth]{Figures/figure_flow_matching.pdf}
-  \caption{Placeholder: Illustration of the Flow Matching training objective. Replace with a figure showing the straight-line OT path between noise and data.}
-  \label{fig:placeholder-flow-matching}
+  \includegraphics[width=0.9\linewidth]{Figures/2_flow_matching_diagram.png}
+  \caption{The Flow Matching blueprint. (a) The goal is to find a flow mapping samples $X_0$ from a known source or noise distribution $p$ into samples $X_1$ from an unknown target or data distribution $q$. (b) To do so, design a time-continuous probability path $(p_t)_{0\le t\le 1}$ interpolating between $p := p_0$ and $q := p_1$. (c) During training, use regression to estimate the velocity field $u_t$ known to generate $p_t$. (d) To draw a novel target sample $X_1 \sim q$, integrate the estimated velocity field $u_t^\theta(X_t)$ from $t = 0$ to $t = 1$, where $X_0 \sim p$ is a novel source sample.}
+  \label{fig:flow-matching-blueprint}
 \end{figure}
 
 \subsection{Traditional Methods}
