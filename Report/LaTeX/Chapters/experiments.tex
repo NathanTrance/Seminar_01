@@ -1,0 +1,42 @@
+\section{Experimental Setup}
+\label{sec:experiments}
+
+Before presenting the empirical comparison, we summarize the experimental protocols used to evaluate the one-step methods surveyed in this paper. Because the field is evolving rapidly, exact hyperparameters and architectural details differ across works; our aim is to provide a unified description of the settings in which the results of \Cref{sec:results} were obtained.
+
+% ---------------------------------------------------------------------
+\subsection{Datasets and Metrics}
+
+The de facto benchmark for one-step generative modeling is class-conditional image generation on ImageNet \citep{deng2009imagenet}. Most recent methods report results at both $256\times256$ and $512\times512$ resolutions, training on the standard ImageNet training split and evaluating on the validation split. The primary evaluation metric is the Fréchet Inception Distance (FID) \citep{heusel2017gans}, which measures the distributional distance between generated and real image features extracted by an Inception-V3 network \citep{szegedy2016rethinking}. Lower FID indicates better sample quality.
+
+Additional metrics reported in the literature include Inception Score (IS) \citep{salimans2016improved}, precision and recall \citep{kynkaanniemi2019improved}, and the number of function evaluations (NFE) required per sample. For flow-based methods, NFE is determined by the number of neural-network evaluations during numerical integration; for one-step methods, NFE is ideally one.
+
+% TODO(team): Add specific dataset details (train/val sizes, preprocessing) and any non-image benchmarks if applicable.
+
+% ---------------------------------------------------------------------
+\subsection{Baselines}
+
+The baselines against which one-step methods are compared fall into three categories:
+
+\begin{itemize}
+    \item \emph{Many-step flow and diffusion models.} These include the original Flow Matching (FM) and Conditional Flow Matching (CFM) baselines \citep{lipman2022flow}, which serve as the quality ceiling but require dozens to hundreds of NFE.
+    \item \emph{Acceleration methods.} Traditional speed-up techniques such as caching \citep{ma2023deepcache, lv2024fastercache, liu2024teacache}, predictive caching \citep{gao2026meancache, sommer2025predictive}, progressive distillation \citep{salimans2022progressive}, and consistency models \citep{song2023consistency} provide intermediate points on the speed--quality curve.
+    \item \emph{One-step and few-step competitors.} Within the flow-matching literature, the main comparators are Consistency-FM \citep{zhou2024consistency}, MeanFlow \citep{geng2025mean}, and Terminal Velocity Matching (TVM) \citep{zhou2026terminal}. Rectified flow and its variants \citep{liu2022rectified, liu2023instaflow} are also relevant baselines.
+\end{itemize}
+
+% TODO(team): Add a concise table of baseline methods with their citation keys and key characteristics.
+
+% ---------------------------------------------------------------------
+\subsection{Training and Evaluation Protocol}
+
+Training protocols vary across the surveyed methods. Consistency-FM is typically initialized from a pre-trained flow-matching model and fine-tuned with a velocity-consistency loss; MeanFlow and TVM are trained from scratch without a teacher. Common training details include the optimizer (usually AdamW), learning rate schedules, batch sizes, and the use of exponential moving averages (EMA) for the model weights.
+
+Evaluation is performed by generating a fixed number of samples (commonly 50,000) conditional on class labels, computing FID against the real validation set, and reporting NFE. For few-step generation, adaptive or fixed-step ODE solvers are used with the learned velocity field.
+
+% TODO(team): Fill in optimizer settings, batch sizes, EMA decay, training iterations, and any architecture-specific hyperparameters for Consistency-FM, MeanFlow, and TVM.
+
+% ---------------------------------------------------------------------
+\subsection{Computational Resources}
+
+Modern one-step models are trained on large clusters of accelerators (e.g., NVIDIA A100 or H100 GPUs). The total training cost is dominated by the need to evaluate the model multiple times per sample for distillation-based methods, or by the Jacobian--vector product computations required by methods such as MeanFlow and TVM. Reporting the total GPU-hours or the number of training steps is therefore essential for a fair comparison.
+
+% TODO(team): Add hardware and training-cost details as reported in the original papers.
