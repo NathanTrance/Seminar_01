@@ -7,7 +7,6 @@
 
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
-\usepackage{hyperref}
 \usepackage{url}
 \usepackage{booktabs}
 \usepackage{amsfonts}
@@ -17,9 +16,13 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{graphicx}
-\usepackage{cleveref}
 \usepackage{algorithm}
 \usepackage{algpseudocode}
+\makeatletter
+\renewcommand{\theHALG@line}{ALG@line.\thealgorithm.\arabic{ALG@line}}
+\makeatother
+\usepackage{hyperref}
+\usepackage{cleveref}
 
 \title{Towards One-Step Flow Matching: A Survey}
 

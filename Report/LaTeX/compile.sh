@@ -6,9 +6,10 @@
 # Change to the script directory
 cd "$(dirname "$0")"
 
-# Compile with pdflatex + bibtex + pdflatex (standard for natbib)
+# Compile with pdflatex + bibtex + pdflatex x3 (standard for natbib/hyperref)
 pdflatex main.tex
 bibtex main
+pdflatex main.tex
 pdflatex main.tex
 pdflatex main.tex
 
