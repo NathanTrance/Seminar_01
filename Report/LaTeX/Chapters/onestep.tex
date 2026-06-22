@@ -1,7 +1,7 @@
 \section{One-Step Generative Modeling}
 \label{sec:onestep}
 
-Building on the flow matching framework, recent methods have developed increasingly sophisticated techniques for learning one-step or few-step generators. We discuss four representative approaches that span the spectrum from training from scratch to distillation from pre-trained models.
+Building on the flow matching framework, recent methods have developed increasingly sophisticated techniques for learning one-step or few-step generators. We discuss three representative velocity-based approaches that span the spectrum from training from scratch to distillation from pre-trained models. Flow-map distillation methods are related but outside the scope of this survey; we noted them briefly in \cref{subsec:related-methods}.
 
 \subsection{Consistency Flow Matching}
 \label{subsec:consistencyfm}
@@ -59,36 +59,6 @@ where $\text{sg}$ denotes the stop-gradient operator. Importantly, MeanFlow trai
   \label{fig:placeholder-mean-flows}
 \end{figure}
 
-\subsection{Align Your Flow}
-\label{subsec:ayf}
-
-Align Your Flow (AYF) \citep{sabour2025align} focuses on scaling continuous-time flow map distillation to high-resolution image generation. AYF begins with a critical theoretical observation: standard consistency models are inherently flawed for multi-step sampling because their objective of predicting clean outputs from any noise level inevitably leads to error accumulation.
-
-AYF resolves this by learning the general \emph{flow map} $f_\theta(x_t, t, s)$ that maps from any time $t$ to any time $s$ along the teacher's probability flow ODE. Two novel training objectives are proposed:
-
-\textbf{AYF-Eulerian Map Distillation (AYF-EMD)} ensures that for a fixed target time $s$, the flow map output remains constant as the starting point $(x_t, t)$ moves along the teacher ODE. The gradient converges to:
-\begin{equation}
-    \nabla_\theta \mathbb{E}_{x_t, t, s} \Big[ w(t,s) \| f_\theta(x_t, t, s) - f_{\theta^-}(x_{t'}, t', s) \|^2 \Big],
-\end{equation}
-where $x_{t'}$ is obtained by one Euler step on the teacher ODE.
-
-\textbf{AYF-Lagrangian Map Distillation (AYF-LMD)} ensures the tangent of the flow map matches the teacher velocity. The gradient converges to:
-\begin{equation}
-    \nabla_\theta \mathbb{E}_{x_t, t, s} \Big[ w(t,s) \| \partial_t f_\theta(x_t, t, s) - v_{\theta^-}(f_\theta(x_t, t, s), t, s) \|^2 \Big],
-\end{equation}
-where $v_{s,t}(x) = (f_{s,t}(x) - x) / (t-s)$ is the average velocity.
-
-AYF further introduces two practical techniques: \emph{autoguidance}, where a low-quality guidance model is distilled alongside the main model to improve sample quality, and \emph{adversarial finetuning}, which boosts sharpness with minimal loss in diversity.
-
-\input{Pseudocode/align_your_flow.tex}
-
-\begin{figure}[t]
-  \centering
-  \includegraphics[width=0.8\linewidth]{Figures/figure_align_your_flow.pdf}
-  \caption{Placeholder: Illustration of AYF-Eulerian and Lagrangian distillation. Replace with a figure showing the flow map matching the teacher ODE.}
-  \label{fig:placeholder-align-your-flow}
-\end{figure}
-
 \subsection{Terminal Velocity Matching}
 \label{subsec:tvm}
 
@@ -98,7 +68,7 @@ Define the displacement map $f(x_t, t, s) = \int_t^s u(x_r, r) \, dr$. The termi
 \begin{equation}
     \frac{d}{ds} f(x_t, t, s) = u(\psi(x_t, t, s), s),
 \end{equation}
-where $\psi$ is the flow map. The key theorem shows that the terminal velocity error upper-bounds the displacement error:
+where $\psi$ denotes the ODE solution map. The key theorem shows that the terminal velocity error upper-bounds the displacement error:
 \begin{equation}
     \mathcal{L}_{\text{displ}}^t(\theta) \leq \int_0^t \mathbb{E}_{x_t} \Big[ \| \frac{d}{ds} f_\theta(x_t, t, s) - u(\psi(x_t, t, s), s) \|^2 \Big] \, ds.
 \end{equation}

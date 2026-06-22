@@ -1,47 +1,31 @@
 \section{Theoretical Analysis}
 \label{sec:theory}
 
-The methods presented in \Cref{sec:onestep} are not merely empirical tricks; they are grounded in rigorous mathematical analysis. In this section, we examine the theoretical foundations that guarantee the correctness and convergence of one-step flow matching.
+The methods presented in \Cref{sec:onestep} are not merely empirical tricks; they are grounded in rigorous mathematical analysis. In this section, we examine the theoretical foundations that guarantee the correctness and convergence of the velocity-based one-step methods surveyed here.
 
 \subsection{Error Bounds and Wasserstein Control}
 
-A central theoretical question is: if we approximate the true flow map or velocity field with a neural network, how close is the generated distribution to the true data distribution? Several of the methods discussed provide explicit bounds.
+A central theoretical question is: if we approximate the true velocity field with a neural network, how close is the generated distribution to the true data distribution? Several of the methods discussed provide explicit bounds.
 
-For the distillation objectives in AYF, both the Eulerian and Lagrangian map distillation losses control the $W_2$ distance between the teacher and student distributions. Specifically, the Wasserstein-2 error is bounded by an exponential of the integral of the Lipschitz constant of the velocity field, multiplied by the distillation loss:
-\begin{equation}
-    W_2^2(\rho_1, \hat{\rho}_1) \leq e^{1 + 2\int |C_t| dt} \cdot \mathcal{L}_{\text{distill}}(\hat{X}),
-\end{equation}
-where $C_t$ is the Lipschitz constant of the velocity field at time $t$. This means that minimizing the distillation loss directly minimizes the distributional error.
-
-Terminal Velocity Matching provides a similar but distinct guarantee. Under the assumption that the learned velocity field $u_\theta(\cdot, s)$ is Lipschitz continuous with constant $L(s)$, the TVM objective upper-bounds the 2-Wasserstein distance between the data distribution and the model's pushforward distribution:
+Terminal Velocity Matching provides the strongest guarantee among the methods surveyed. Under the assumption that the learned velocity field $u_\theta(\cdot, s)$ is Lipschitz continuous with constant $L(s)$, the TVM objective upper-bounds the 2-Wasserstein distance between the data distribution and the model's pushforward distribution:
 \begin{equation}
     W_2^2(f_{t \to 0}^\theta \# p_t, p_0) \leq \int_0^t \lambda[L](s) \, \mathcal{L}_{\text{TVM}}^{t,s}(\theta) \, ds + C,
 \end{equation}
 where $\lambda[\cdot]$ is a functional of the Lipschitz constants and $C$ is a non-optimizable constant. This is a powerful result because it connects the per-time training objective directly to a global measure of generative quality.
 
-\subsection{Unification Under the Flow Map Formalism}
+Mean Flows, by contrast, do not provide a direct Wasserstein bound, but the MeanFlow Identity ensures that the learned average velocity is self-consistent along trajectories. Consistency Flow Matching similarly guarantees that a perfect consistency model produces straight trajectories, so that a single Euler step is exact.
 
-The flow map framework provides a unified lens through which to view all one-step methods. The flow map $X_{s,t}$ is the integral operator that transports solutions of the probability flow ODE from time $s$ to time $t$. It satisfies the semigroup property $X_{t,\tau}(X_{s,t}(x)) = X_{s,\tau}(x)$ and the tangent condition $\lim_{s \to u} \partial_u X_{s,u}(x) = v_{u,u}(x) = b_u(x)$.
+\subsection{Straightness and One-Step Exactness}
 
-Within this framework:
+A common theme across all three methods is the role of \emph{trajectory straightness}. For an OT path, the conditional velocity is constant: $u_t = x_1 - x_0$. If a learned velocity field satisfies $v_\theta(x_t, t) = x_1 - x_0$ everywhere along the straight line, then one Euler step of any size transports noise exactly to data. In practice, the methods differ in how they enforce this straightness:
 \begin{itemize}
-    \item \textbf{Standard Flow Matching} corresponds to learning the instantaneous velocity $v_{u,u}(x)$, i.e., the flow map in the infinitesimal limit.
-    \item \textbf{Consistency Models} correspond to learning the flow map with $s=0$ (the endpoint map), collapsing the full trajectory to a single prediction.
-    \item \textbf{Consistency Trajectory Models} and \textbf{Mean Flows} correspond to learning the flow map for arbitrary $s, t$ but with specific parameterizations of the average velocity.
-    \item \textbf{AYF} and \textbf{TVM} are direct attempts to learn the general flow map $X_{s,t}$ for all time pairs, with additional theoretical guarantees on distributional error.
+    \item \textbf{Consistency Flow Matching} enforces that $v_\theta(x_t, t)$ is constant along a trajectory, so $x_t + (1-t) v_\theta(x_t, t)$ is independent of $t$.
+    \item \textbf{Mean Flows} models the average velocity directly, ensuring that the integral of the instantaneous velocity over any interval matches the predicted average.
+    \item \textbf{Terminal Velocity Matching} matches the terminal dynamics, bounding the displacement error through the terminal velocity error.
 \end{itemize}
-
-This unification reveals that the apparent diversity of methods in the literature is in fact a progression along a single mathematical axis: the scope of the time interval over which the flow map is learned.
-
-\begin{figure}[t]
-  \centering
-  \includegraphics[width=0.8\linewidth]{Figures/figure_theory.pdf}
-  \caption{Placeholder: Illustration of the flow map formalism $X_{s,t}$ and how different methods correspond to learning the map over different time intervals. Replace with a figure showing the semigroup property and tangent conditions.}
-  \label{fig:placeholder-theory}
-\end{figure}
 
 \subsection{Limitations of Consistency Models}
 
-AYF provides a rigorous explanation for why standard consistency models degrade in multi-step sampling. Consider a Gaussian data distribution $p_{\text{data}}(x) = \mathcal{N}(0, c^2 I)$. The optimal consistency model $f^*(x_t, t)$ maps any noisy input directly to the clean mean. However, for any $\delta > 0$, there exists a suboptimal consistency model $f(x_t, t)$ with error less than $\delta$ at every time, yet whose multi-step sampling error increases without bound as the number of steps grows. This is because the consistency objective forces the model to predict clean outputs from all noise levels, and any small error in this prediction is amplified when the model is applied sequentially.
+A rigorous explanation for why standard consistency models degrade in multi-step sampling can be seen even for a Gaussian data distribution $p_{\text{data}}(x) = \mathcal{N}(0, c^2 I)$. The optimal consistency model $f^*(x_t, t)$ maps any noisy input directly to the clean mean. However, for any $\delta > 0$, there exists a suboptimal consistency model $f(x_t, t)$ with error less than $\delta$ at every time, yet whose multi-step sampling error increases without bound as the number of steps grows. This is because the consistency objective forces the model to predict clean outputs from all noise levels, and any small error in this prediction is amplified when the model is applied sequentially.
 
-Flow maps avoid this by learning the general transport $X_{s,t}$ rather than the endpoint map $X_{t,0}$, allowing them to compose steps without error accumulation.
+The methods discussed in \Cref{sec:onestep} avoid this pathology in different ways: Consistency-FM multi-segment training restricts the endpoint prediction to shorter intervals, Mean Flows predicts average velocities over arbitrary intervals, and TVM bounds the displacement error directly through terminal-velocity matching.
