@@ -1,0 +1,73 @@
+\section{Results}
+\label{sec:results}
+
+Having reviewed the methodological foundations of one-step flow matching, we now turn to the empirical record. In this section, we synthesize the quantitative results reported in the papers summarized in the Materials folder (arXiv:2210.02747, arXiv:2407.02398, arXiv:2505.13447, arXiv:2506.14603, arXiv:2511.19797, and arXiv:2601.14430). All metrics are taken from the original publications; our goal is to place them in a unified comparative context.
+
+\subsection{ImageNet Benchmarks}
+
+The de facto standard for evaluating one-step generative models is class-conditional image generation on ImageNet. \Cref{tab:imagenet-results} collects the FID scores and function-evaluation counts (NFE) reported by the recent methods at $256\times256$ and $512\times512$ resolutions. Where available, we also report the training paradigm---whether the model is trained from scratch, distilled from a pre-trained teacher, or fine-tuned with auxiliary losses.
+
+\begin{table}[t]
+  \centering
+  \small
+  \caption{Comparative results on ImageNet class-conditional generation. FID scores are reported at the indicated NFE. All numbers are taken from the original papers.}
+  \label{tab:imagenet-results}
+  \resizebox{\textwidth}{!}{%
+  \begin{tabular}{@{}llcccc@{}}
+    \toprule
+    Method & Citation & Resolution & 1-NFE FID & 4-NFE FID & Training paradigm \\
+    \midrule
+    Flow Matching (OT) & arXiv:2210.02747 \citep{lipman2022flow} & 256$\times$256 & --- & --- & Simulation-free CNF \\
+    Consistency-FM & arXiv:2407.02398 \citep{zhou2024consistency} & 256$\times$256 & --- & --- & Velocity consistency \\
+    MeanFlow & arXiv:2505.13447 \citep{geng2025mean} & 256$\times$256 & \textbf{3.43} & --- & From scratch \\
+    AYF & arXiv:2506.14603 \citep{sabour2025align} & 64$\times$64 / 512$\times$512 & --- & SOTA & Distillation + guidance \\
+    TVM & arXiv:2511.19797 \citep{zhou2026terminal} & 256$\times$256 & \textbf{3.29} & \textbf{1.99} & Single-stage, arch.~stability \\
+    \bottomrule
+  \end{tabular}%
+  }
+\end{table}
+
+\textbf{One-step generation.} The strongest one-step (1-NFE) results are currently held by Terminal Velocity Matching (TVM, arXiv:2511.19797) and MeanFlow (arXiv:2505.13447), achieving FID scores of $3.29$ and $3.43$ respectively on ImageNet $256\times256$ \citep{zhou2026terminal,geng2025mean}. These numbers are remarkably close to the quality of many-step diffusion models, yet they require only a single neural-network evaluation. The two methods arrive at this performance via different routes: TVM relies on terminal-velocity regularization and carefully engineered architectural stability (RMSNorm QK-Norm, normalized AdaLN, and a fused JVP attention kernel), whereas MeanFlow is entirely self-contained and trains from scratch using the MeanFlow Identity without any pre-trained teacher or distillation pipeline.
+
+\textbf{Few-step generation.} When the budget is relaxed to four function evaluations, TVM (arXiv:2511.19797) pushes the FID down to $1.99$ on ImageNet $256\times256$, a figure that rivals the best many-step diffusion models \citep{zhou2026terminal}. AYF (arXiv:2506.14603) reports state-of-the-art few-step results at $512\times512$ resolution, leveraging continuous-time flow-map distillation combined with autoguidance and adversarial fine-tuning \citep{sabour2025align}. The key takeaway is that the gap between few-step and many-step generation has narrowed to the point of being practically negligible for high-resolution image synthesis.
+
+\textbf{Training efficiency.} Consistency-FM (arXiv:2407.02398) reports a $4.4\times$ training-speedup over standard consistency models and a $1.7\times$ speedup over rectified-flow baselines, achieved by enforcing velocity consistency directly in the velocity-field space rather than in sample space \citep{zhou2024consistency}. TVM (arXiv:2511.19797) additionally reports a $65\%$ speedup in the backward pass by fusing Jacobian-Vector-Product computations into a custom Flash Attention kernel \citep{zhou2026terminal}. These gains indicate that algorithmic innovations and systems-level optimizations are both essential for scaling one-step training to billion-parameter models.
+
+\subsection{Flow-Path Straightness and Transport Cost}
+
+Although FID is the headline metric, the geometric quality of the learned flow---namely the straightness of trajectories and the transport cost---is equally important for understanding why one-step methods succeed. Flow Matching with optimal-transport paths (arXiv:2210.02747) established that straight-line interpolants yield faster training and better generalization than curved diffusion paths \citep{lipman2022flow}. Consistency-FM (arXiv:2407.02398) explicitly measures velocity consistency as a proxy for straightness and shows that enforcing it reduces the number of training steps needed to reach a given FID \citep{zhou2024consistency}. Rectified flow (arXiv:2209.03003, summarized in the Materials README) provides the theoretical grounding: recursively applying rectification yields flows with monotonically non-increasing convex transport costs, and when the flow becomes perfectly straight, a single Euler step gives exact transport. These results confirm that straightness is not merely a geometric curiosity but a practical predictor of sample efficiency.
+
+\subsection{Reward Alignment and Controllability}
+
+Beyond unconditional generation, Meta Flow Maps (arXiv:2601.14430) extend the empirical evaluation to reward-aligned generation on ImageNet \citep{potaptchik2026meta}. MFMs are reported to outperform Best-of-$1000$ baselines across multiple reward functions while using dramatically fewer trajectory rollouts. The practical implication is that one-step posterior sampling enables inference-time steering and training-time fine-tuning that were previously computationally prohibitive. Although MFMs do not yet report a single FID figure for standard class-conditional generation, their reward-alignment results demonstrate that the flow-map formalism scales beyond the narrow setting of noise-to-data transport.
+
+\subsection{Summary of Trade-offs}
+
+\Cref{tab:trade-offs} summarizes the practical trade-offs among the surveyed methods.
+
+\begin{table}[t]
+  \centering
+  \small
+  \caption{Practical trade-offs of one-step flow-matching methods.}
+  \label{tab:trade-offs}
+  \begin{tabular}{@{}lccc@{}}
+    \toprule
+    Method (arXiv) & Teacher? & Scalable to 512$\times$512? & Theoretical guarantee \\
+    \midrule
+    Consistency-FM (2407.02398) & No & Limited & Velocity consistency \\
+    MeanFlow (2505.13447) & No & 256$\times$256 & MeanFlow Identity \\
+    AYF (2506.14603) & Yes & Yes & $W_2$ bound \\
+    TVM (2511.19797) & No & 256$\times$256 & $W_2$ bound (terminal) \\
+    MFM (2601.14430) & Yes (stoch.) & Yes (reward tasks) & Semigroup + posterior \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+The empirical landscape reveals two broad strategies: (1) \emph{training from scratch} (MeanFlow, TVM), which avoids the cost and dependency of a pre-trained teacher but demands careful architectural and optimization design; and (2) \emph{distillation from a teacher} (AYF, MFM), which leverages an existing high-quality model but requires additional compute for the distillation phase and risks error accumulation if the flow map is not sufficiently regular. Consistency-FM (arXiv:2407.02398) occupies a middle ground, training without a teacher but using multi-segment decomposition to handle complex distributions. Taken together, the results from the Materials folder suggest that one-step flow matching is no longer a theoretical curiosity: it is a practical, competitive paradigm for high-resolution generative modeling.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.9\linewidth]{Figures/figure_theory.pdf}
+  \caption{Conceptual summary of the empirical progression: from flow matching (arXiv:2210.02747) to one-step results (MeanFlow, arXiv:2505.13447; TVM, arXiv:2511.19797) and reward-aligned extensions (MFM, arXiv:2601.14430).}
+  \label{fig:results-summary}
+\end{figure}

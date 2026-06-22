@@ -1,22 +1,27 @@
-\section{Background}
-\label{sec:background}
+\section{Related Work}
+\label{sec:related}
 
-Before diving into one-step methods, we review the foundational idea that underpins the entire field: flow matching, which provides the simulation-free training framework for continuous normalizing flows and the probability flow ODE that one-step methods seek to compress.
+Flow matching provides the mathematical foundation for the one-step methods surveyed in this paper. In this section, we review the core ideas of flow matching and conditional flow matching, trace traditional strategies for accelerating diffusion and flow models, and situate the modern one-step literature among closely related paradigms.
 
-\subsection{Flow Matching}
-\label{subsec:flowmatching}
+\subsection{Flow Matching and Conditional Flow Matching}
+\label{subsec:fm-cfm}
 
-Flow matching (FM) \citep{lipman2022flow} introduces a simulation-free paradigm for training continuous normalizing flows (CNFs). The key innovation is a training objective based on regressing vector fields of fixed conditional probability paths, avoiding the need for expensive ODE simulation during training.
+Flow Matching (FM) \citep{lipman2022flow} introduces a simulation-free paradigm for training Continuous Normalizing Flows (CNFs). The key idea is to learn a time-dependent velocity field $v_\theta(t, x)$ whose associated probability flow ODE transports a simple source distribution $p_0$ (typically Gaussian noise) to a target data distribution $p_1$:
+\begin{equation}
+    \frac{d}{dt} x_t = v_\theta(t, x_t), \qquad x_0 \sim p_0, \quad x_1 \sim p_1.
+\end{equation}
+Rather than simulating this ODE during training, FM defines a conditional path $x_t = \alpha_t x_0 + \beta_t x_1$ between each data-noise pair $(x_0, x_1)$ and regresses the network prediction against the corresponding conditional velocity $u_t = \dot{\alpha}_t x_0 + \dot{\beta}_t x_1$.
 
-Given data $x_1 \sim p_1$ and noise $x_0 \sim p_0$, FM defines a conditional path $x_t = \alpha_t x_0 + \beta_t x_1$ with velocity $u_t = \dot{\alpha}_t x_0 + \dot{\beta}_t x_1$. The marginal velocity field $v(t, x_t)$ is the expectation of $u_t$ over all $(x_0, x_1)$ pairs consistent with $x_t$, which is intractable. FM solves this by using the \emph{conditional flow matching} objective:
+The marginal velocity field is the expectation of $u_t$ over all $(x_0, x_1)$ pairs consistent with $x_t$, which is intractable to compute directly. Conditional Flow Matching (CFM) sidesteps this difficulty by using the conditional objective
 \begin{equation}
     \mathcal{L}_{\text{CFM}} = \mathbb{E}_{t, x_0, x_1} \| v_\theta(x_t, t) - u_t \|^2,
+    \label{eq:cfm-loss}
 \end{equation}
-which has the same gradient as the intractable marginal objective but is computationally efficient. The minimizer of this loss equals the true marginal velocity field.
+which shares the same gradient with respect to $\theta$ as the intractable marginal objective while remaining computationally efficient \citep{lipman2022flow}. The minimizer of \cref{eq:cfm-loss} equals the true marginal velocity field, so training amounts to standard regression on sampled $(t, x_0, x_1)$ tuples.
 
-A particularly important choice is the \emph{optimal transport (OT) path}, where $\alpha_t = 1-t$ and $\beta_t = t$. This yields $x_t = (1-t) x_0 + t x_1$ and a constant conditional velocity $u_t = x_1 - x_0$. These paths are straight, minimize transport cost, and have been shown to provide faster training, better generalization, and higher sample quality than diffusion-based curved paths \citep{lipman2022flow}.
+A particularly important choice is the \emph{optimal transport (OT) path}, where $\alpha_t = 1-t$ and $\beta_t = t$. This yields the straight-line interpolant $x_t = (1-t) x_0 + t x_1$ and a constant conditional velocity $u_t = x_1 - x_0$. These straight paths minimize transport cost, enable faster training, and have been shown to improve generalization and sample quality compared with the curved trajectories typical of diffusion models \citep{lipman2022flow}.
 
-Flow matching thus provides the training backbone for all subsequent methods: it defines the probability flow ODE that one-step methods seek to compress, and the conditional velocity objective that underlies both standard and one-step training.
+Flow matching thus provides the training backbone for all subsequent methods in this survey: it defines the probability flow ODE that one-step methods seek to compress, and the conditional regression objective that underlies both standard and one-step training.
 
 \input{Pseudocode/flow_matching.tex}
 
@@ -26,3 +31,56 @@ Flow matching thus provides the training backbone for all subsequent methods: it
   \caption{Placeholder: Illustration of the Flow Matching training objective. Replace with a figure showing the straight-line OT path between noise and data.}
   \label{fig:placeholder-flow-matching}
 \end{figure}
+
+\subsection{Traditional Methods}
+\label{subsec:traditional}
+
+Before the emergence of dedicated one-step flow matching, practitioners accelerated generative models through two broad strategies: reducing the cost of each function evaluation via caching, and reducing the number of evaluations via step distillation. Both approaches predate modern one-step FM but remain relevant as baselines and complementary techniques.
+
+\subsubsection{Cache-based acceleration}
+
+Because Conditional Flow Matching is typically sampled with many-step ODE solvers, its inference pipeline resembles that of a diffusion model: a deep network is evaluated sequentially, and adjacent evaluations often produce highly similar intermediate activations. Consequently, flow matching can directly adopt training-free caching methods originally developed for diffusion.
+
+Formally, one Euler step of a flow-matching sampler can be written as
+\begin{equation}
+    x_{t+\Delta t} = x_t + \Delta t \, v_\theta(x_t, t),
+    \label{eq:euler-step}
+\end{equation}
+where $v_\theta(x_t, t)$ is the neural velocity estimate. If we decompose the network into a feature extractor $\phi_\theta$ and a read-out head $g_\theta$, so that $v_\theta(x_t, t) = g_\theta\big(\phi_\theta(x_t, t)\big)$, then caching stores the features $h_t = \phi_\theta(x_t, t)$ from a previous step and reuses them when the timestep changes slowly:
+\begin{equation}
+    \tilde{v}_\theta(x_t, t) = g_\theta\big(h_{t-\delta}\big).
+\end{equation}
+DeepCache \citep{ma2023deepcache} is the canonical example: it caches high-level U-Net features across denoising steps and updates only low-level features, yielding large speedups on Stable Diffusion and latent diffusion models with minimal quality loss. More recent diffusion caching schemes such as FasterCache \citep{lv2024fastercache} and TeaCache \citep{liu2024teacache} refine this idea for video models by exploiting redundancy in conditional/unconditional branches and timestep-aware feature reuse, respectively. Because these methods operate on the backbone architecture rather than the sampling distribution, they can be ported to flow-matching image and video generators with little or no modification.
+
+Work that explicitly targets flow matching caching is still scarce. MeanCache \citep{gao2026meancache} is a recent exception: it argues that instantaneous-velocity feature caching introduces trajectory drift, and instead caches Jacobian--vector products to construct interval average velocities for more stable FM acceleration. Outside of vision, predictive feature caching has been applied to flow-matching models of molecular geometry generation \citep{sommer2025predictive}, and layer-selective attention caching has been used to accelerate flow-matching transformers for audio separation. These domain-specific works confirm that caching remains a valuable, largely model-agnostic acceleration tactic. Nevertheless, caching lowers the cost per step rather than the step count, so it is complementary to---rather than a replacement for---the one-step methods surveyed below.
+
+\subsubsection{Step distillation}
+
+Step distillation trains a student model that requires fewer sampling steps than its teacher. The prototypical approach is progressive distillation \citep{salimans2022progressive}, which iteratively halves the number of sampling steps by distilling a $2N$-step teacher into an $N$-step student. Given a teacher sampler $f_{\theta^*}(\cdot, \cdot; 2N)$ that produces an estimate after $2N$ function evaluations, progressive distillation minimizes
+\begin{equation}
+    \mathcal{L}_{\text{PD}}(\theta) = \mathbb{E}_{t, x_t} \Big[ \big\| f_\theta(x_t, t; N) - f_{\theta^*}(x_t, t; 2N) \big\|^2 \Big],
+    \label{eq:progressive-distillation}
+\end{equation}
+where $f_\theta(x_t, t; N)$ denotes the student output obtained with $N$ steps. Although effective for moderate speedups, progressive distillation is expensive---the distillation procedure must be repeated for each halving---and can suffer from error accumulation as the step budget shrinks.
+
+A closely related idea is rectified flow \citep{liu2022rectified}, which learns straight ODE trajectories by refitting the transport map between noise and data. It can be viewed as minimizing the same conditional objective as FM but with the goal of straightening the coupling:
+\begin{equation}
+    \mathcal{L}_{\text{RF}}(\theta) = \mathbb{E}_{t, x_0, x_1} \Big[ \big\| v_\theta\big((1-t)x_0 + t x_1, t\big) - (x_1 - x_0) \big\|^2 \Big].
+    \label{eq:rectified-flow}
+\end{equation}
+Repeated rectification yields increasingly straight flows, and when the flow becomes exactly straight a single Euler step gives exact transport. InstaFlow \citep{liu2023instaflow} combined rectified flow with distillation to produce the first Stable-Diffusion-quality one-step text-to-image model, demonstrating that flow-based distillation could outperform progressive distillation on standard benchmarks.
+
+These methods established the feasibility of few-step and one-step sampling, but they also revealed key limitations---expensive multi-stage training, dependence on high-quality teachers, and difficulty in scaling to high resolutions---that motivated the dedicated one-step flow matching methods discussed in \cref{sec:onestep}.
+
+\subsection{Related Methods}
+\label{subsec:related-methods}
+
+Two closely related lines of work set the stage for modern one-step flow matching: consistency models, which enforce that all points on a trajectory map to the same endpoint, and flow-map distillation, which learns the general transport operator between arbitrary times.
+
+\subsubsection{Consistency Models}
+
+Consistency Models (CMs) \citep{song2023consistency} train a network $f_\theta(x_t, t)$ that maps any point on a diffusion or flow trajectory directly to the trajectory's endpoint $x_0$. The defining consistency property requires that $f_\theta(x_t, t) = f_\theta(x_{t'}, t')$ whenever $x_t$ and $x_{t'}$ lie on the same trajectory. CMs demonstrated that one-step generation was possible without iterative sampling, but early variants struggled with scalability, multi-step error accumulation, and the need for careful curriculum training. These limitations motivated the flow-map and consistency-flow-matching approaches discussed in \cref{sec:onestep}.
+
+\subsubsection{Flow-map distillation}
+
+Flow-map distillation generalizes the consistency-model idea from endpoint prediction to learning the \emph{flow map} $f_\theta(x_t, t, s)$ that transports a state from time $t$ to any other time $s$ along the teacher ODE. By avoiding the constraint that every noisy state must predict a clean sample, flow-map methods can compose multiple steps without the error amplification that plagues standard consistency models. Align Your Flow \citep{sabour2025align} is a recent large-scale instantiation of this idea, using continuous-time Eulerian and Lagrangian distillation objectives to scale flow-map distillation to high-resolution image generation. We discuss AYF and related flow-map methods further in \cref{sec:onestep}.
