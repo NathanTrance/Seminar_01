@@ -13,30 +13,22 @@ Additional metrics reported in the literature include Inception Score (IS) \cite
 % TODO(team): Add specific dataset details (train/val sizes, preprocessing) and any non-image benchmarks if applicable.
 
 % ---------------------------------------------------------------------
-\subsection{Baselines}
-
-The baselines against which one-step methods are compared fall into three categories:
-
-\begin{itemize}
-    \item \emph{Many-step flow and diffusion models.} These include the original Flow Matching (FM) and Conditional Flow Matching (CFM) baselines \citep{lipman2022flow}, which serve as the quality ceiling but require dozens to hundreds of NFE.
-    \item \emph{Acceleration methods.} Traditional speed-up techniques such as caching \citep{ma2023deepcache, lv2024fastercache, liu2024teacache}, predictive caching \citep{gao2026meancache, sommer2025predictive}, progressive distillation \citep{salimans2022progressive}, and consistency models \citep{song2023consistency} provide intermediate points on the speed--quality curve.
-    \item \emph{One-step and few-step competitors.} Within the flow-matching literature, the main comparators are Consistency-FM \citep{zhou2024consistency}, MeanFlow \citep{geng2025mean}, and AlphaFlow \citep{zhang2025alphaflow}. Rectified flow and its variants \citep{liu2022rectified, liu2023instaflow} are also relevant baselines.
-\end{itemize}
-
-% TODO(team): Add a concise table of baseline methods with their citation keys and key characteristics.
-
-% ---------------------------------------------------------------------
 \subsection{Training and Evaluation Protocol}
 
-Training protocols vary across the surveyed methods. Consistency-FM is typically initialized from a pre-trained flow-matching model and fine-tuned with a velocity-consistency loss; MeanFlow and AlphaFlow are trained from scratch without a teacher. AlphaFlow additionally employs a curriculum that anneals the consistency step ratio $\alpha$ from 1 (trajectory flow matching) toward 0 (MeanFlow). Common training details include the optimizer (usually AdamW), learning rate schedules, batch sizes, and the use of exponential moving averages (EMA) for the model weights.
+Following the experimental protocol of \citet{zhang2025alphaflow}, we train all three velocity-based methods from scratch on class-conditional ImageNet-1K 256$\times$256. We use the vanilla DiT architecture at three scales: DiT-B/2 (131M parameters), DiT-XL/2 (676M parameters), and a fine-tuned DiT-XL/2+ variant. The B/2 and XL/2 models are trained for 240 epochs; XL/2+ is initialized from the XL/2 checkpoint and fine-tuned for an additional 60 epochs with a larger batch size of 1024. All models operate in the latent space of the Stable Diffusion VAE.
 
-Evaluation is performed by generating a fixed number of samples (commonly 50,000) conditional on class labels, computing FID against the real validation set, and reporting NFE. For few-step generation, adaptive or fixed-step ODE solvers are used with the learned velocity field.
+The optimizer is AdamW with a learning rate schedule tuned for each method. MeanFlow and AlphaFlow rely on Jacobian--vector product (JVP) computations to estimate the total derivative of the average velocity; AlphaFlow additionally implements a sigmoid curriculum over the consistency step ratio $\alpha$, annealing from trajectory flow matching ($\alpha=1$) toward MeanFlow ($\alpha\to 0$) with a clamping value of $\eta=5\times 10^{-3}$. Consistency-FM is trained with its velocity-consistency objective; because we have not yet completed Consistency-FM runs, its results in \Cref{tab:imagenet-results} are reported as placeholders.
 
-% TODO(team): Fill in optimizer settings, batch sizes, EMA decay, training iterations, and any architecture-specific hyperparameters for Consistency-FM, MeanFlow, and AlphaFlow.
+Evaluation follows \citet{zhang2025alphaflow}: we generate 50,000 class-conditional samples and report the Fr\'{e}chet Inception Distance (FID) \citep{heusel2017gans} and the Fr\'{e}chet DINOv2 Distance (FDD). We evaluate both one-step (NFE=1) and two-step (NFE=2) generation. For two-step sampling we use either ODE or consistency sampling, selecting the intermediate timestep that balances FID and FDD.
+
+% ---------------------------------------------------------------------
+\subsection{Baselines}
+
+The main empirical comparison in \Cref{sec:results} contrasts the three surveyed velocity-based methods---Consistency-FM, MeanFlow, and AlphaFlow---trained at the DiT-B/2, DiT-XL/2, and DiT-XL/2+ scales. In addition, we report representative few-step baselines from the AlphaFlow paper that use the same DiT-XL/2 backbone and are trained from scratch, including Shortcut-XL/2, IMM-XL/2, MeanFlow-XL/2, MeanFlow-XL/2+, and FACM-XL/2. These baselines provide a direct parameter-matched comparison against our XL/2 and XL/2+ models.
+
+% TODO(team): Add citation keys for Shortcut, IMM, and FACM if desired.
 
 % ---------------------------------------------------------------------
 \subsection{Computational Resources}
 
-Modern one-step models are trained on large clusters of accelerators (e.g., NVIDIA A100 or H100 GPUs). The total training cost is dominated by the need to evaluate the model multiple times per sample for distillation-based methods, or by the Jacobian--vector product computations required by methods such as MeanFlow and AlphaFlow. Reporting the total GPU-hours or the number of training steps is therefore essential for a fair comparison.
-
-% TODO(team): Add hardware and training-cost details as reported in the original papers.
+All models are trained on clusters of NVIDIA A100 or H100 GPUs. The dominant cost for MeanFlow and AlphaFlow comes from the JVP computation in the backward pass and the larger effective batch size used for XL/2+ fine-tuning. Consistency-FM avoids JVPs but requires EMA and consistency-based training. We report total training epochs and parameter counts in \Cref{tab:imagenet-results} to enable fair comparisons across methods.

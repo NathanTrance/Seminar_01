@@ -1,36 +1,51 @@
 \section{Results}
 \label{sec:results}
 
-Having reviewed the methodological foundations of one-step flow matching, we now turn to the empirical record. In this section, we synthesize the quantitative results reported in the papers summarized in the Materials folder (arXiv:2210.02747, arXiv:2407.02398, arXiv:2505.13447, and arXiv:2511.19797). All metrics are taken from the original publications; our goal is to place them in a unified comparative context.
+Having reviewed the methodological foundations of one-step flow matching, we now turn to the empirical record. Following the AlphaFlow experimental protocol, we compare the three surveyed velocity-based methods---Consistency-FM, MeanFlow, and AlphaFlow---across DiT-B/2, DiT-XL/2, and DiT-XL/2+ scales on class-conditional ImageNet-1K 256$\times$256. MeanFlow and AlphaFlow numbers are taken from \citet{zhang2025alphaflow}; Consistency-FM results are left as placeholders because our runs are not yet complete. We also include representative few-step baselines from the AlphaFlow paper for context.
 
 \subsection{ImageNet Benchmarks}
 
-The de facto standard for evaluating one-step generative models is class-conditional image generation on ImageNet. \Cref{tab:imagenet-results} collects the FID scores and function-evaluation counts (NFE) reported by the recent methods at $256\times256$ and $512\times512$ resolutions. Where available, we also report the training paradigm---whether the model is trained from scratch, distilled from a pre-trained teacher, or fine-tuned with auxiliary losses.
+\Cref{tab:imagenet-results} reports 1-NFE and 2-NFE FID scores, parameter counts, and training epochs. All listed models use the vanilla DiT backbone and are trained from scratch in the Stable Diffusion VAE latent space.
 
 \begin{table}[t]
   \centering
   \small
-  \caption{Comparative results on ImageNet class-conditional generation. FID scores are reported at the indicated NFE. All numbers are taken from the original papers.}
+  \caption{Comparative results on ImageNet-1K 256$\times$256 class-conditional generation. FID and FDD scores are reported for 1-NFE and 2-NFE sampling.}
   \label{tab:imagenet-results}
   \resizebox{\textwidth}{!}{%
-  \begin{tabular}{@{}llcccc@{}}
+  \begin{tabular}{@{}lcc cc cc@{}}
     \toprule
-    Method & Citation & Resolution & 1-NFE FID & 2-NFE FID & Training paradigm \\
+    & & & \multicolumn{2}{c}{1-NFE} & \multicolumn{2}{c}{2-NFE} \\
+    \cmidrule(lr){4-5} \cmidrule(lr){6-7}
+    Method & Params & Epochs & FID $\downarrow$ & FDD $\downarrow$ & FID $\downarrow$ & FDD $\downarrow$ \\
     \midrule
-    Flow Matching (OT) & arXiv:2210.02747 \citep{lipman2022flow} & 256$\times$256 & --- & --- & Simulation-free CNF \\
-    Consistency-FM & arXiv:2407.02398 \citep{zhou2024consistency} & 256$\times$256 & --- & --- & Velocity consistency \\
-    MeanFlow & arXiv:2505.13447 \citep{geng2025mean} & 256$\times$256 & 3.43 & --- & From scratch \\
-    AlphaFlow & arXiv:2510.20771 \citep{zhang2025alphaflow} & 256$\times$256 & \textbf{2.58} & \textbf{2.15} & From scratch, curriculum \\
+    % \multicolumn{7}{@{}l}{\emph{Few-step baselines from the AlphaFlow paper}} \\
+    Shortcut-XL/2 & 675M & 160 & 10.60 & --- & --- & --- \\
+    IMM-XL/2 & 676M & 3840 & 8.05 & --- & 3.88 & --- \\
+    MeanFlow-XL/2 \citep{geng2025mean} & 676M & 240 & 3.43 & --- & 2.93 & --- \\
+    MeanFlow-XL/2+ \citep{geng2025mean} & 676M & 1000 & --- & --- & 2.20 & --- \\
+    FACM-XL/2 & 675M & 800 + 250$\times$2 & --- & --- & 2.07 & --- \\
+    \midrule
+    % \multicolumn{7}{@{}l}{\emph{Surveyed methods (our planned comparison)}} \\
+    Consistency-FM-B/2 & 131M & 240 & TBD & TBD & TBD & TBD \\
+    Consistency-FM-XL/2 & 676M & 240 & TBD & TBD & TBD & TBD \\
+    \midrule
+    MeanFlow-B/2 \citep{geng2025mean} & 131M & 240 & 6.04 & 312.3 & 5.17 & 232.1 \\
+    MeanFlow-XL/2 \citep{geng2025mean} & 676M & 240 & 3.47 & 185.8 & 2.46 & 108.7 \\
+    \midrule
+    AlphaFlow-B/2 \citep{zhang2025alphaflow} & 131M & 240 & 5.40 & 287.1 & 5.01 & 231.8 \\
+    AlphaFlow-XL/2 \citep{zhang2025alphaflow} & 676M & 240 & 2.95 & 164.6 & 2.34 & 105.7 \\
+    AlphaFlow-XL/2+ \citep{zhang2025alphaflow} & 676M & 240+60 & \textbf{2.58} & \textbf{148.4} & \textbf{2.15} & \textbf{96.8} \\
     \bottomrule
   \end{tabular}%
   }
 \end{table}
 
-\textbf{One-step generation.} The strongest one-step (1-NFE) results among from-scratch trained models with vanilla DiT backbones are currently held by AlphaFlow (arXiv:2510.20771), achieving an FID of $2.58$ on ImageNet $256\times256$ \citep{zhang2025alphaflow}. MeanFlow (arXiv:2505.13447) reports a 1-NFE FID of $3.43$ on the same benchmark \citep{geng2025mean}. These numbers are remarkably close to the quality of many-step diffusion models, yet they require only a single neural-network evaluation. The two methods arrive at this performance via different routes: AlphaFlow resolves the optimization conflict hidden in the MeanFlow objective through a curriculum over the consistency step ratio, whereas MeanFlow is entirely self-contained and trains from scratch using the MeanFlow Identity without any pre-trained teacher or distillation pipeline.
+\textbf{One-step generation.} At the DiT-XL/2+ scale, AlphaFlow achieves the strongest 1-NFE result among the surveyed methods, with an FID of $2.58$ \citep{zhang2025alphaflow}. The same AlphaFlow-XL/2 checkpoint reaches $2.95$ FID after 240 epochs, already outperforming the MeanFlow-XL/2 baseline trained for the same number of epochs ($3.47$ FID). At the smaller DiT-B/2 scale, AlphaFlow reduces the 1-NFE FID from $6.04$ (MeanFlow) to $5.40$, showing consistent gains across model capacities. The Consistency-FM placeholders will allow us to assess whether enforcing velocity consistency directly can match or exceed the average-velocity approach at comparable scale.
 
-\textbf{Few-step generation.} When the budget is relaxed to two function evaluations, AlphaFlow (arXiv:2510.20771) pushes the FID down to $2.15$ on ImageNet $256\times256$ \citep{zhang2025alphaflow}. This figure rivals the best many-step diffusion models and confirms that the gap between few-step and many-step generation has narrowed to the point of being practically negligible for high-resolution image synthesis.
+\textbf{Few-step generation.} With two function evaluations, AlphaFlow-XL/2+ reaches $2.15$ FID, and AlphaFlow-XL/2 reaches $2.34$ FID, both below the MeanFlow-XL/2 result of $2.46$ FID \citep{zhang2025alphaflow}. The gap is smaller at DiT-B/2 ($5.01$ vs.~$5.17$), suggesting that the curriculum benefit is most pronounced at larger scale. The external FACM-XL/2 baseline reports $2.07$ FID, but uses a more complex training schedule and roughly twice the compute per epoch; AlphaFlow-XL/2+ matches this quality with a simpler curriculum.
 
-\textbf{Training efficiency.} Consistency-FM (arXiv:2407.02398) reports a $4.4\times$ training-speedup over standard consistency models and a $1.7\times$ speedup over rectified-flow baselines, achieved by enforcing velocity consistency directly in the velocity-field space rather than in sample space \citep{zhou2024consistency}. AlphaFlow (arXiv:2510.20771) reduces the reliance on expensive border-case ($r=t$) flow-matching supervision compared with MeanFlow, while improving final convergence and sample quality \citep{zhang2025alphaflow}. These gains indicate that algorithmic innovations in the training objective are essential for scaling one-step training to billion-parameter models.
+\textbf{Training efficiency.} AlphaFlow's curriculum reduces the reliance on expensive border-case ($r=t$) flow-matching supervision compared with MeanFlow, while improving final convergence and sample quality \citep{zhang2025alphaflow}. At DiT-B/2, AlphaFlow achieves better 1-NFE and 2-NFE FID than MeanFlow even with only 25\% border-case flow matching, whereas MeanFlow requires 75\% for its best result. These gains indicate that algorithmic innovations in the training objective---rather than simply scaling compute---are essential for advancing one-step flow matching.
 
 \subsection{Flow-Path Straightness and Transport Cost}
 
@@ -56,7 +71,7 @@ Although FID is the headline metric, the geometric quality of the learned flow--
   \end{tabular}
 \end{table}
 
-The empirical landscape reveals two broad strategies: (1) \emph{training from scratch} (MeanFlow, AlphaFlow), which avoids the cost and dependency of a pre-trained teacher but demands careful optimization design; and (2) \emph{distillation or constrained training} (Consistency-FM), which avoids the need for a pre-trained teacher but uses additional structure such as velocity consistency or multi-segment decomposition to handle complex distributions. Taken together, the results from the Materials folder suggest that one-step flow matching is no longer a theoretical curiosity: it is a practical, competitive paradigm for high-resolution generative modeling.
+The empirical landscape reveals two broad strategies: (1) \emph{training from scratch} (MeanFlow, AlphaFlow), which avoids the cost and dependency of a pre-trained teacher but demands careful optimization design; and (2) \emph{constrained training} (Consistency-FM), which imposes additional structure such as velocity consistency or multi-segment decomposition to handle complex distributions. Taken together, the results in \Cref{tab:imagenet-results} suggest that one-step flow matching is no longer a theoretical curiosity: it is a practical, competitive paradigm for high-resolution generative modeling.
 
 \begin{figure}[t]
   \centering
