@@ -6,9 +6,9 @@ Before presenting the empirical comparison, we summarize the experimental protoc
 % ---------------------------------------------------------------------
 \subsection{Datasets and Metrics}
 
-The de facto benchmark for one-step generative modeling is class-conditional image generation on ImageNet \citep{deng2009imagenet}. Most recent methods report results at both $256\times256$ and $512\times512$ resolutions, training on the standard ImageNet training split and evaluating on the validation split. The primary evaluation metric is the Fréchet Inception Distance (FID) \citep{heusel2017gans}, which measures the distributional distance between generated and real image features extracted by an Inception-V3 network \citep{szegedy2016rethinking}. Lower FID indicates better sample quality.
+The de facto benchmark for one-step generative modeling is class-conditional image generation on ImageNet \citep{deng2009imagenet} at $256\times256$ resolution, training on the standard ImageNet-1K training split and evaluating on the validation split. The primary evaluation metric is the Fréchet Inception Distance (FID) \citep{heusel2017gans}, which measures the distributional distance between generated and real image features extracted by an Inception-V3 network \citep{szegedy2016rethinking}. We also report the Fréchet DINOv2 Distance (FDD), which uses DINOv2 features and is less sensitive to minor misalignments than FID. For both metrics, lower values indicate better sample quality.
 
-Additional metrics reported in the literature include Inception Score (IS) \citep{salimans2016improved}, precision and recall \citep{kynkaanniemi2019improved}, and the number of function evaluations (NFE) required per sample. For flow-based methods, NFE is determined by the number of neural-network evaluations during numerical integration; for one-step methods, NFE is ideally one.
+The number of function evaluations (NFE) required per sample is reported alongside each result. For flow-based methods, NFE is determined by the number of neural-network evaluations during numerical integration; for one-step methods, NFE is ideally one.
 
 % TODO(team): Add specific dataset details (train/val sizes, preprocessing) and any non-image benchmarks if applicable.
 
@@ -19,7 +19,7 @@ Following the experimental protocol of \citet{zhang2025alphaflow}, we train all 
 
 The optimizer is AdamW with a learning rate schedule tuned for each method. MeanFlow and AlphaFlow rely on Jacobian--vector product (JVP) computations to estimate the total derivative of the average velocity; AlphaFlow additionally implements a sigmoid curriculum over the consistency step ratio $\alpha$, annealing from trajectory flow matching ($\alpha=1$) toward MeanFlow ($\alpha\to 0$) with a clamping value of $\eta=5\times 10^{-3}$. Consistency-FM is trained with its velocity-consistency objective; because we have not yet completed Consistency-FM runs, its results in \Cref{tab:imagenet-results} are reported as placeholders.
 
-Evaluation follows \citet{zhang2025alphaflow}: we generate 50,000 class-conditional samples and report the Fr\'{e}chet Inception Distance (FID) \citep{heusel2017gans} and the Fr\'{e}chet DINOv2 Distance (FDD). We evaluate both one-step (NFE=1) and two-step (NFE=2) generation. For two-step sampling we use either ODE or consistency sampling, selecting the intermediate timestep that balances FID and FDD.
+Evaluation follows \citet{zhang2025alphaflow}: we generate 50,000 class-conditional samples and report FID and FDD. We evaluate both one-step (NFE=1) and two-step (NFE=2) generation. For two-step sampling we use either ODE or consistency sampling, selecting the intermediate timestep that balances FID and FDD.
 
 % ---------------------------------------------------------------------
 \subsection{Baselines}
@@ -31,4 +31,4 @@ The main empirical comparison in \Cref{sec:results} contrasts the three surveyed
 % ---------------------------------------------------------------------
 \subsection{Computational Resources}
 
-All models are trained on clusters of NVIDIA A100 or H100 GPUs. The dominant cost for MeanFlow and AlphaFlow comes from the JVP computation in the backward pass and the larger effective batch size used for XL/2+ fine-tuning. Consistency-FM avoids JVPs but requires EMA and consistency-based training. We report total training epochs and parameter counts in \Cref{tab:imagenet-results} to enable fair comparisons across methods.
+All models are trained on a single NVIDIA A100 GPU. The dominant cost for MeanFlow and AlphaFlow comes from the JVP computation in the backward pass and the larger effective batch size used for XL/2+ fine-tuning. Consistency-FM avoids JVPs but requires EMA and consistency-based training. We report total training epochs and parameter counts in \Cref{tab:imagenet-results} to enable fair comparisons across methods.
