@@ -62,7 +62,7 @@ where $\text{sg}$ denotes the stop-gradient operator. Importantly, MeanFlow trai
 \subsection{AlphaFlow}
 \label{subsec:alphaflow}
 
-AlphaFlow \citep{zhang2025alphaflow} addresses a subtle but important limitation of MeanFlow: the MeanFlow objective is actually composed of two competing terms whose gradients conflict during training. By decomposing the objective and resolving this conflict through curriculum learning, AlphaFlow improves both convergence and final sample quality.
+AlphaFlow \citep{zhang2025alphaflow}\footnote{Official implementation: \url{https://github.com/snap-research/alphaflow}.} addresses a subtle but important limitation of MeanFlow: the MeanFlow objective is actually composed of two competing terms whose gradients conflict during training. By decomposing the objective and resolving this conflict through curriculum learning, AlphaFlow improves both convergence and final sample quality.
 
 The starting point is the observation that the MeanFlow loss can be rewritten as the sum of a \emph{trajectory flow matching} term and a \emph{trajectory consistency} term:
 \begin{equation}
