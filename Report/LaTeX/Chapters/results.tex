@@ -1,16 +1,12 @@
 \section{Results}
 \label{sec:results}
 
-Having reviewed the methodological foundations of one-step flow matching, we now turn to the empirical record. Following the AlphaFlow experimental protocol, we compare the three surveyed velocity-based methods---Consistency-FM, MeanFlow, and AlphaFlow---across DiT-B/2, DiT-XL/2, and DiT-XL/2+ scales on class-conditional ImageNet-1K 256$\times$256. MeanFlow and AlphaFlow numbers are taken from \citet{zhang2025alphaflow}; Consistency-FM results are left as placeholders because our runs are not yet complete. We also include representative few-step baselines from the AlphaFlow paper for context.
-
-\subsection{ImageNet Benchmarks}
-
-\Cref{tab:imagenet-results} reports 1-NFE and 2-NFE FID scores, parameter counts, and training epochs. All listed models use the vanilla DiT backbone and are trained from scratch in the Stable Diffusion VAE latent space.
+Having reviewed the methodological foundations of one-step flow matching, we now turn to the empirical results obtained under the protocol described in \Cref{sec:experiments}. \Cref{tab:imagenet-results} reports 1-NFE and 2-NFE FID and FDD scores, parameter counts, and training epochs for the three surveyed velocity-based methods and a set of representative baselines. MeanFlow and AlphaFlow numbers are taken from \citet{zhang2025alphaflow}; Consistency-FM results are left as placeholders because our runs are not yet complete.
 
 \begin{table}[t]
   \centering
   \small
-  \caption{Comparative results on ImageNet-1K 256$\times$256 class-conditional generation. FID and FDD scores are reported for 1-NFE and 2-NFE sampling.}
+  \caption{ImageNet-1K 256$\times$256 class-conditional generation results. FID and FDD scores are reported for 1-NFE and 2-NFE sampling; lower is better.}
   \label{tab:imagenet-results}
   \resizebox{\textwidth}{!}{%
   \begin{tabular}{@{}lcc cc cc@{}}
@@ -22,8 +18,6 @@ Having reviewed the methodological foundations of one-step flow matching, we now
     % \multicolumn{7}{@{}l}{\emph{Few-step baselines from the AlphaFlow paper}} \\
     Shortcut-XL/2 & 675M & 160 & 10.60 & --- & --- & --- \\
     IMM-XL/2 & 676M & 3840 & 8.05 & --- & 3.88 & --- \\
-    MeanFlow-XL/2 \citep{geng2025mean} & 676M & 240 & 3.43 & --- & 2.93 & --- \\
-    MeanFlow-XL/2+ \citep{geng2025mean} & 676M & 1000 & --- & --- & 2.20 & --- \\
     FACM-XL/2 & 675M & 800 + 250$\times$2 & --- & --- & 2.07 & --- \\
     \midrule
     % \multicolumn{7}{@{}l}{\emph{Surveyed methods (our planned comparison)}} \\
@@ -45,7 +39,7 @@ Having reviewed the methodological foundations of one-step flow matching, we now
 
 \textbf{Few-step generation.} With two function evaluations, AlphaFlow-XL/2+ reaches $2.15$ FID, and AlphaFlow-XL/2 reaches $2.34$ FID, both below the MeanFlow-XL/2 result of $2.46$ FID \citep{zhang2025alphaflow}. The gap is smaller at DiT-B/2 ($5.01$ vs.~$5.17$), suggesting that the curriculum benefit is most pronounced at larger scale. The external FACM-XL/2 baseline reports $2.07$ FID, but uses a more complex training schedule and roughly twice the compute per epoch; AlphaFlow-XL/2+ matches this quality with a simpler curriculum.
 
-\textbf{Training efficiency.} AlphaFlow's curriculum reduces the reliance on expensive border-case ($r=t$) flow-matching supervision compared with MeanFlow, while improving final convergence and sample quality \citep{zhang2025alphaflow}. At DiT-B/2, AlphaFlow achieves better 1-NFE and 2-NFE FID than MeanFlow even with only 25\% border-case flow matching, whereas MeanFlow requires 75\% for its best result. These gains indicate that algorithmic innovations in the training objective---rather than simply scaling compute---are essential for advancing one-step flow matching.
+\textbf{Training efficiency.} The results in \Cref{tab:imagenet-results} show that the AlphaFlow curriculum improves sample quality without increasing parameter count or training time per epoch. At DiT-B/2, AlphaFlow outperforms MeanFlow on both 1-NFE and 2-NFE FID while using less border-case ($r=t$) flow-matching supervision; the gain is larger at DiT-XL/2, where AlphaFlow-XL/2 reaches $2.95$ FID compared with MeanFlow-XL/2's $3.47$ FID after the same 240 epochs. This indicates that better optimization of the average-velocity objective can be more impactful than simply scaling model size or compute.
 
 \subsection{Flow-Path Straightness and Transport Cost}
 
@@ -62,16 +56,16 @@ Although FID is the headline metric, the geometric quality of the learned flow--
   \label{tab:trade-offs}
   \begin{tabular}{@{}lccc@{}}
     \toprule
-    Method (arXiv) & Teacher? & Scalable to 512$\times$512? & Theoretical guarantee \\
+    Method (arXiv) & Teacher? & From scratch? & Key mechanism \\
     \midrule
-    Consistency-FM (2407.02398) & No & Limited & Velocity consistency \\
-    MeanFlow (2505.13447) & No & 256$\times$256 & MeanFlow Identity \\
-    AlphaFlow (2510.20771) & No & 256$\times$256 & Curriculum unification \\
+    Consistency-FM (2407.02398) & No & Yes & Velocity consistency \\
+    MeanFlow (2505.13447) & No & Yes & MeanFlow Identity \\
+    AlphaFlow (2510.20771) & No & Yes & Curriculum over $\alpha$ \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-The empirical landscape reveals two broad strategies: (1) \emph{training from scratch} (MeanFlow, AlphaFlow), which avoids the cost and dependency of a pre-trained teacher but demands careful optimization design; and (2) \emph{constrained training} (Consistency-FM), which imposes additional structure such as velocity consistency or multi-segment decomposition to handle complex distributions. Taken together, the results in \Cref{tab:imagenet-results} suggest that one-step flow matching is no longer a theoretical curiosity: it is a practical, competitive paradigm for high-resolution generative modeling.
+All three surveyed methods train from scratch without a pre-trained teacher, differing mainly in how they constrain or curriculum the velocity objective. Consistency-FM enforces pointwise velocity consistency, MeanFlow optimizes the average-velocity identity directly, and AlphaFlow interpolates between trajectory flow matching and MeanFlow via a curriculum over $\alpha$. Taken together, the results in \Cref{tab:imagenet-results} suggest that one-step flow matching is no longer a theoretical curiosity: it is a practical, competitive paradigm for high-resolution generative modeling.
 
 \begin{figure}[t]
   \centering
