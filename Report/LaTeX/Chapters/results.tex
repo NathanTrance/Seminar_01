@@ -24,12 +24,12 @@ Having reviewed the methodological foundations of one-step flow matching, we now
     Consistency-FM-B/2 & 131M & 240 & TBD & TBD & TBD & TBD \\
     Consistency-FM-XL/2 & 676M & 240 & TBD & TBD & TBD & TBD \\
     \midrule
-    MeanFlow-B/2 \citep{geng2025mean} & 131M & 240 & 6.04 & 312.3 & 5.17 & 232.1 \\
-    MeanFlow-XL/2 \citep{geng2025mean} & 676M & 240 & 3.47 & 185.8 & 2.46 & 108.7 \\
+    MeanFlow-B/2 & 131M & 240 & 6.04 & 312.3 & 5.17 & 232.1 \\
+    MeanFlow-XL/2 & 676M & 240 & 3.47 & 185.8 & 2.46 & 108.7 \\
     \midrule
-    AlphaFlow-B/2 \citep{zhang2025alphaflow} & 131M & 240 & 5.40 & 287.1 & 5.01 & 231.8 \\
-    AlphaFlow-XL/2 \citep{zhang2025alphaflow} & 676M & 240 & 2.95 & 164.6 & 2.34 & 105.7 \\
-    AlphaFlow-XL/2+ \citep{zhang2025alphaflow} & 676M & 240+60 & \textbf{2.58} & \textbf{148.4} & \textbf{2.15} & \textbf{96.8} \\
+    AlphaFlow-B/2 & 131M & 240 & 5.40 & 287.1 & 5.01 & 231.8 \\
+    AlphaFlow-XL/2 & 676M & 240 & 2.95 & 164.6 & 2.34 & 105.7 \\
+    AlphaFlow-XL/2+ & 676M & 240+60 & \textbf{2.58} & \textbf{148.4} & \textbf{2.15} & \textbf{96.8} \\
     \bottomrule
   \end{tabular}%
   }
@@ -41,35 +41,6 @@ Having reviewed the methodological foundations of one-step flow matching, we now
 
 \textbf{Training efficiency.} The results in \Cref{tab:imagenet-results} show that the AlphaFlow curriculum improves sample quality without increasing parameter count or training time per epoch. At DiT-B/2, AlphaFlow outperforms MeanFlow on both 1-NFE and 2-NFE FID while using less border-case ($r=t$) flow-matching supervision; the gain is larger at DiT-XL/2, where AlphaFlow-XL/2 reaches $2.95$ FID compared with MeanFlow-XL/2's $3.47$ FID after the same 240 epochs. This indicates that better optimization of the average-velocity objective can be more impactful than simply scaling model size or compute.
 
-\subsection{Flow-Path Straightness and Transport Cost}
+\textbf{Scaling behavior.} Across all three methods, increasing model capacity from DiT-B/2 (131M parameters) to DiT-XL/2 (676M parameters) yields large FID improvements. For AlphaFlow, the 1-NFE FID drops from $5.40$ to $2.95$---a relative improvement of roughly $45\%$---and the 2-NFE FID drops from $5.01$ to $2.34$. The additional XL/2+ fine-tuning (240+60 epochs) brings a further modest gain to $2.58$ / $2.15$, suggesting that most of the benefit comes from the base scale and the curriculum, with extended training providing diminishing returns. Once Consistency-FM results are available, this scaling comparison will also reveal whether velocity-consistency training benefits more or less from increased capacity than the average-velocity approaches.
 
-Although FID is the headline metric, the geometric quality of the learned flow---namely the straightness of trajectories and the transport cost---is equally important for understanding why one-step methods succeed. Flow Matching with optimal-transport paths (arXiv:2210.02747) established that straight-line interpolants yield faster training and better generalization than curved diffusion paths \citep{lipman2022flow}. Consistency-FM (arXiv:2407.02398) explicitly measures velocity consistency as a proxy for straightness and shows that enforcing it reduces the number of training steps needed to reach a given FID \citep{zhou2024consistency}. Rectified flow (arXiv:2209.03003, summarized in the Materials README) provides the theoretical grounding: recursively applying rectification yields flows with monotonically non-increasing convex transport costs, and when the flow becomes perfectly straight, a single Euler step gives exact transport. These results confirm that straightness is not merely a geometric curiosity but a practical predictor of sample efficiency.
-
-\subsection{Summary of Trade-offs}
-
-\Cref{tab:trade-offs} summarizes the practical trade-offs among the surveyed methods.
-
-\begin{table}[t]
-  \centering
-  \small
-  \caption{Practical trade-offs of one-step flow-matching methods.}
-  \label{tab:trade-offs}
-  \begin{tabular}{@{}lccc@{}}
-    \toprule
-    Method (arXiv) & Teacher? & From scratch? & Key mechanism \\
-    \midrule
-    Consistency-FM (2407.02398) & No & Yes & Velocity consistency \\
-    MeanFlow (2505.13447) & No & Yes & MeanFlow Identity \\
-    AlphaFlow (2510.20771) & No & Yes & Curriculum over $\alpha$ \\
-    \bottomrule
-  \end{tabular}
-\end{table}
-
-All three surveyed methods train from scratch without a pre-trained teacher, differing mainly in how they constrain or curriculum the velocity objective. Consistency-FM enforces pointwise velocity consistency, MeanFlow optimizes the average-velocity identity directly, and AlphaFlow interpolates between trajectory flow matching and MeanFlow via a curriculum over $\alpha$. Taken together, the results in \Cref{tab:imagenet-results} suggest that one-step flow matching is no longer a theoretical curiosity: it is a practical, competitive paradigm for high-resolution generative modeling.
-
-\begin{figure}[t]
-  \centering
-  \includegraphics[width=0.9\linewidth]{Figures/figure_theory.pdf}
-  \caption{Conceptual summary of the empirical progression: from flow matching (arXiv:2210.02747) to one-step results (MeanFlow, arXiv:2505.13447; AlphaFlow, arXiv:2510.20771).}
-  \label{fig:results-summary}
-\end{figure}
+\textbf{Comparison with baselines.} Among the few-step baselines, FACM-XL/2 achieves the strongest 2-NFE FID ($2.07$), but it uses a specialized training schedule with roughly twice the compute per epoch of AlphaFlow-XL/2. AlphaFlow-XL/2+ matches this performance ($2.15$) with a simpler curriculum and the same backbone. Shortcut-XL/2 and IMM-XL/2 remain competitive but lag behind, reflecting the advantage of directly optimizing the average velocity rather than relying on recursive reflow or multi-step distillation. Taken together, the results in \Cref{tab:imagenet-results} suggest that one-step flow matching is no longer a theoretical curiosity: it is a practical, competitive paradigm for high-resolution generative modeling.
