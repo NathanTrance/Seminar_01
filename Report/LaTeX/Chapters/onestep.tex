@@ -59,33 +59,32 @@ where $\text{sg}$ denotes the stop-gradient operator. Importantly, MeanFlow trai
   \label{fig:placeholder-mean-flows}
 \end{figure}
 
-\subsection{Terminal Velocity Matching}
-\label{subsec:tvm}
+\subsection{AlphaFlow}
+\label{subsec:alphaflow}
 
-Terminal Velocity Matching (TVM) \citep{zhou2026terminal} provides a generalization of flow matching that directly learns the ODE integral while offering strong theoretical guarantees. Instead of matching time derivatives at the initial time, TVM matches them at the \emph{terminal time} of trajectories.
+AlphaFlow \citep{zhang2025alphaflow} addresses a subtle but important limitation of MeanFlow: the MeanFlow objective is actually composed of two competing terms whose gradients conflict during training. By decomposing the objective and resolving this conflict through curriculum learning, AlphaFlow improves both convergence and final sample quality.
 
-Define the displacement map $f(x_t, t, s) = \int_t^s u(x_r, r) \, dr$. The terminal velocity condition states:
+The starting point is the observation that the MeanFlow loss can be rewritten as the sum of a \emph{trajectory flow matching} term and a \emph{trajectory consistency} term:
 \begin{equation}
-    \frac{d}{ds} f(x_t, t, s) = u(\psi(x_t, t, s), s),
+    \mathcal{L}_{\text{MF}}(\theta) = \underbrace{\mathbb{E}_{t,r,z_t} \big[ \| u_\theta(z_t, r, t) - v_t \|^2 \big]}_{\mathcal{L}_{\text{TFM}}} + \underbrace{\mathbb{E}_{t,r,z_t} \big[ 2(t-r) \, u_\theta(z_t, r, t)^\top \tfrac{d}{dt} u_{\theta^\text{-}}(z_t, r, t) \big]}_{\mathcal{L}_{\text{TC}_c}} + C,
 \end{equation}
-where $\psi$ denotes the ODE solution map. The key theorem shows that the terminal velocity error upper-bounds the displacement error:
+where $C$ is independent of $\theta$. Empirically, the gradients of $\mathcal{L}_{\text{TFM}}$ and $\mathcal{L}_{\text{TC}_c}$ are strongly negatively correlated, which makes joint optimization unstable and slows convergence. The large flow-matching ratio used in MeanFlow ($r=t$ for 75\% of samples) can be understood as a surrogate that reduces this conflict, but it also consumes most of the training budget on a border case.
+
+To unify and disentangle these objectives, AlphaFlow introduces a single interpolation parameter $\alpha \in (0, 1]$:
 \begin{equation}
-    \mathcal{L}_{\text{displ}}^t(\theta) \leq \int_0^t \mathbb{E}_{x_t} \Big[ \| \frac{d}{ds} f_\theta(x_t, t, s) - u(\psi(x_t, t, s), s) \|^2 \Big] \, ds.
+    \mathcal{L}_\alpha(\theta) = \mathbb{E}_{t,r,z_t} \Big[ \alpha^{-1} \big\| u_\theta(z_t, r, t) - \big( \alpha v_t + (1-\alpha) u_{\theta^\text{-}}(z_s, r, s) \big) \big\|^2 \Big],
 \end{equation}
+where $s = \alpha r + (1-\alpha)t$ and $z_s = z_t + (t-s) v_t$. This family recovers several previous methods as special cases: $\alpha = 1$ gives trajectory flow matching; $\alpha = 1/2$ corresponds to the Shortcut Model objective; and $\alpha \to 0$ recovers MeanFlow. With an endpoint parameterization ($r \equiv 0$), it also subsumes discrete and continuous consistency training.
 
-This leads to the training objective:
-\begin{equation}
-    \mathcal{L}_{\text{TVM}}^{t,s} = \mathbb{E} \Big[ \underbrace{\| \frac{d}{ds} f_\theta(x_t, t, s) - u_{\theta_{\text{sg}}^*}(x_t + f_{\theta_{\text{sg}}}(x_t, t, s), s) \|^2}_{\text{terminal velocity}} + \underbrace{\| u_\theta(x_s, s) - v_s \|^2}_{\text{flow matching}} \Big],
-\end{equation}
-where the first term ensures correct terminal velocity and the second term ensures the instantaneous velocity field matches the data. TVM achieves 3.29 FID with 1 NFE and 1.99 FID with 4 NFEs on ImageNet 256$\times$256.
+The practical training schedule proceeds in three phases. First, the model is pretrained with $\alpha = 1$ (trajectory flow matching) to quickly reach a reliable noise-to-data mapping. Then $\alpha$ is annealed smoothly toward 0, transitioning from the low-variance flow-matching objective to the low-bias MeanFlow objective. Finally, the model is fine-tuned with $\alpha \approx 0$. Because the early phase already optimizes trajectory flow matching, AlphaFlow requires far less border-case flow-matching supervision than MeanFlow while achieving better final performance.
 
-A critical practical challenge is that diffusion transformers lack Lipschitz continuity, which destabilizes training. TVM addresses this with minimal architectural changes: RMSNorm-based QK-normalization, time embedding normalization, and a fused Flash Attention kernel supporting backward passes on Jacobian-Vector Products.
+On class-conditional ImageNet 256$\times$256 with vanilla DiT backbones, AlphaFlow sets a new state of the art among from-scratch trained models of this class, reaching FID 2.58 with 1 NFE and FID 2.15 with 2 NFEs.
 
-\input{Pseudocode/terminal_velocity.tex}
+\input{Pseudocode/alphaflow.tex}
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=0.8\linewidth]{Figures/figure_terminal_velocity.pdf}
-  \caption{Placeholder: Illustration of Terminal Velocity Matching at the endpoint. Replace with a figure showing the displacement map and Wasserstein bound.}
-  \label{fig:placeholder-terminal-velocity}
+  \caption{Placeholder: Illustration of the AlphaFlow curriculum. Replace with a figure showing the interpolation between trajectory flow matching ($\alpha=1$) and MeanFlow ($\alpha \to 0$).}
+  \label{fig:placeholder-alphaflow}
 \end{figure}

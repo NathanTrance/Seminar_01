@@ -17,7 +17,7 @@ If this holds, the quantity $f(t, x_t) = x_t + (1-t) v_\theta(t, x_t)$ is indepe
 
 \paragraph{Multi-segment training.} When a single straight path is insufficient, Consistency-FM divides $[0,1]$ into $K$ segments and enforces consistency within each segment. The resulting trajectories are piece-wise linear, giving a tunable trade-off between approximation fidelity and the strength of the consistency prior.
 
-\paragraph{Limitations of endpoint-only consistency.} Standard consistency models predict the clean sample directly from every noise level. Even a model with uniformly small per-step error can accumulate unbounded multi-step error, because small mistakes in the endpoint prediction are amplified when the model is applied sequentially. Consistency-FM mitigates this through multi-segment training; Mean Flows and TVM avoid it by predicting velocities rather than endpoints.
+\paragraph{Limitations of endpoint-only consistency.} Standard consistency models predict the clean sample directly from every noise level. Even a model with uniformly small per-step error can accumulate unbounded multi-step error, because small mistakes in the endpoint prediction are amplified when the model is applied sequentially. Consistency-FM mitigates this through multi-segment training; Mean Flows and AlphaFlow avoid it by predicting velocities rather than endpoints.
 
 % TODO(team): Add formal proposition/lemma on consistency implies straightness, and discuss the relationship to rectified flow / optimal transport.
 
@@ -38,25 +38,23 @@ The total derivative is computed efficiently as a Jacobian--vector product (JVP)
 % TODO(team): Add a formal statement of the MeanFlow Identity, perhaps with a short proof sketch, and discuss its implications for stability and convergence.
 
 % ---------------------------------------------------------------------
-\subsection{Terminal Velocity Matching}
-\label{subsec:theory-tvm}
+\subsection{AlphaFlow}
+\label{subsec:theory-alphaflow}
 
-Terminal Velocity Matching (TVM) generalizes flow matching by matching velocities at the \emph{terminal} time of trajectories rather than the initial time. Define the displacement map
+AlphaFlow \citep{zhang2025alphaflow} provides an optimization-theoretic refinement of the MeanFlow framework rather than a new Wasserstein bound. Its starting point is the decomposition of the MeanFlow objective into a \emph{trajectory flow matching} term and a \emph{trajectory consistency} term:
 \begin{equation}
-    f(x_t, t, s) = \int_t^s u(x_r, r) \, dr.
+    \mathcal{L}_{\text{MF}}(\theta) = \underbrace{\mathbb{E}_{t,r,z_t} \big[ \| u_\theta(z_t, r, t) - v_t \|^2 \big]}_{\mathcal{L}_{\text{TFM}}} + \underbrace{\mathbb{E}_{t,r,z_t} \big[ 2(t-r) \, u_\theta(z_t, r, t)^\top \tfrac{d}{dt} u_{\theta^\text{-}}(z_t, r, t) \big]}_{\mathcal{L}_{\text{TC}_c}} + C,
 \end{equation}
-The terminal velocity condition requires
+where $C$ is independent of $\theta$. The first term, $\mathcal{L}_{\text{TFM}}$, is a flow-matching loss over arbitrary intervals $[r,t]$; the second term, $\mathcal{L}_{\text{TC}_c}$, is a $(t-r)$-reweighted continuous consistency loss without an explicit boundary condition.
+
+\paragraph{Gradient conflict.} Empirically, the gradients of $\mathcal{L}_{\text{TFM}}$ and $\mathcal{L}_{\text{TC}_c}$ are strongly negatively correlated during training. This conflict arises because $\mathcal{L}_{\text{TC}_c}$ has a large optimal solution manifold, while $\mathcal{L}_{\text{TFM}}$ constrains the model to a narrow manifold of correct average velocities. Joint optimization is therefore unstable: the trajectory consistency term can pull the model away from the trajectory flow-matching optimum, slowing convergence.
+
+\paragraph{AlphaFlow unification.} To disentangle these objectives, AlphaFlow introduces a single interpolation parameter $\alpha \in (0,1]$:
 \begin{equation}
-    \frac{d}{ds} f(x_t, t, s) = u(\psi(x_t, t, s), s),
+    \mathcal{L}_\alpha(\theta) = \mathbb{E}_{t,r,z_t} \Big[ \alpha^{-1} \big\| u_\theta(z_t, r, t) - \big( \alpha v_t + (1-\alpha) u_{\theta^\text{-}}(z_s, r, s) \big) \big\|^2 \Big],
 \end{equation}
-where $\psi$ denotes the ODE solution map. TVM's key theorem shows that the terminal velocity error upper-bounds the displacement error, which in turn controls the distributional gap between the model and the data.
+with $s = \alpha r + (1-\alpha)t$. This objective interpolates between trajectory flow matching ($\alpha=1$), Shortcut Models ($\alpha=1/2$), and MeanFlow ($\alpha \to 0$). By annealing $\alpha$ from 1 to 0, training first converges to the low-variance flow-matching manifold and then gradually shifts to the low-bias MeanFlow objective, reducing the need for the expensive border-case ($r=t$) flow-matching supervision used in original MeanFlow.
 
-\paragraph{Wasserstein guarantee.} Under a Lipschitz assumption on the learned velocity field $u_\theta(\cdot, s)$ with constant $L(s)$, the TVM objective upper-bounds the 2-Wasserstein distance between the data distribution and the model's pushforward:
-\begin{equation}
-    W_2^2(f_{t \to 0}^\theta \# p_t, p_0) \leq \int_0^t \lambda[L](s) \, \mathcal{L}_{\text{TVM}}^{t,s}(\theta) \, ds + C,
-\end{equation}
-where $\lambda[\cdot]$ is a functional of the Lipschitz constants and $C$ is a non-optimizable constant. This directly connects the per-time training loss to a global measure of generative quality.
+\paragraph{Practical implication.} AlphaFlow's analysis shows that the difficulty of training MeanFlow is not a flaw in the average-velocity parameterization itself, but an optimization conflict between two implicit sub-objectives. Resolving this conflict through curriculum learning yields stronger empirical results: on ImageNet 256$\times$256, AlphaFlow achieves FID 2.58 with 1 NFE and FID 2.15 with 2 NFEs, outperforming the MeanFlow baseline it builds on.
 
-\paragraph{Architectural stability.} A practical obstacle is that diffusion transformers are not Lipschitz continuous, which can destabilize training. TVM addresses this with RMSNorm-based QK-normalization, normalized time embeddings, and a fused Flash Attention kernel that supports backward passes through Jacobian--vector products.
-
-% TODO(team): Expand the proof sketch of the Wasserstein bound, clarify the role of Lipschitz constants, and connect the bound to the empirical ImageNet results.
+% TODO(team): Add a short discussion of how the AlphaFlow curriculum relates to consistency-model curricula, and whether the gradient-conflict observation extends to other average-velocity methods.

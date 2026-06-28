@@ -1,0 +1,23 @@
+\begin{algorithm}[t]
+\caption{AlphaFlow Training}
+\label{alg:alphaflow}
+\begin{algorithmic}[1]
+\Require Data $x$, noise $\epsilon$, average-velocity network $u_\theta$, iteration $k$, schedule $\alpha(k)$, optimizer
+\State Sample $r, t \sim \text{Uniform}(0,1)$ with $r < t$
+\State $\alpha \gets \alpha(k)$; \quad $s \gets \alpha r + (1-\alpha) t$
+\State $z_t \gets (1 - t) \, x + t \, \epsilon$ \Comment{Interpolant}
+\State $v \gets \epsilon - x$ \Comment{Conditional velocity}
+\If{$\alpha = 0$}
+    \State $u \gets u_\theta(z_t, r, t)$
+    \State Compute JVP: $\tfrac{d}{dt} u_\theta(z_t, r, t)$
+    \State $u_{\text{tgt}} \gets v - (t - r) \cdot \tfrac{d}{dt} u$ \Comment{MeanFlow target}
+\Else
+    \State $u \gets u_\theta(z_t, r, t)$
+    \State $z_s \gets z_t + (t - s) \cdot v$
+    \State $u_{\text{tgt}} \gets \alpha v + (1 - \alpha) \, u_{\theta^\text{-}}(z_s, r, s)$ \Comment{Interpolated target}
+\EndIf
+\State $\mathcal{L} \gets \alpha^{-1} \| u - \text{sg}(u_{\text{tgt}}) \|^2$
+\State Update $\theta$ with $\nabla_\theta \mathcal{L}$
+\State \Return $\mathcal{L}$
+\end{algorithmic}
+\end{algorithm}

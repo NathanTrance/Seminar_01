@@ -15,22 +15,22 @@ The de facto standard for evaluating one-step generative models is class-conditi
   \resizebox{\textwidth}{!}{%
   \begin{tabular}{@{}llcccc@{}}
     \toprule
-    Method & Citation & Resolution & 1-NFE FID & 4-NFE FID & Training paradigm \\
+    Method & Citation & Resolution & 1-NFE FID & 2-NFE FID & Training paradigm \\
     \midrule
     Flow Matching (OT) & arXiv:2210.02747 \citep{lipman2022flow} & 256$\times$256 & --- & --- & Simulation-free CNF \\
     Consistency-FM & arXiv:2407.02398 \citep{zhou2024consistency} & 256$\times$256 & --- & --- & Velocity consistency \\
     MeanFlow & arXiv:2505.13447 \citep{geng2025mean} & 256$\times$256 & 3.43 & --- & From scratch \\
-    TVM & arXiv:2511.19797 \citep{zhou2026terminal} & 256$\times$256 & \textbf{3.29} & \textbf{1.99} & Single-stage, arch.~stability \\
+    AlphaFlow & arXiv:2510.20771 \citep{zhang2025alphaflow} & 256$\times$256 & \textbf{2.58} & \textbf{2.15} & From scratch, curriculum \\
     \bottomrule
   \end{tabular}%
   }
 \end{table}
 
-\textbf{One-step generation.} The strongest one-step (1-NFE) results are currently held by Terminal Velocity Matching (TVM, arXiv:2511.19797) and MeanFlow (arXiv:2505.13447), achieving FID scores of $3.29$ and $3.43$ respectively on ImageNet $256\times256$ \citep{zhou2026terminal,geng2025mean}. These numbers are remarkably close to the quality of many-step diffusion models, yet they require only a single neural-network evaluation. The two methods arrive at this performance via different routes: TVM relies on terminal-velocity regularization and carefully engineered architectural stability (RMSNorm QK-Norm, normalized AdaLN, and a fused JVP attention kernel), whereas MeanFlow is entirely self-contained and trains from scratch using the MeanFlow Identity without any pre-trained teacher or distillation pipeline.
+\textbf{One-step generation.} The strongest one-step (1-NFE) results among from-scratch trained models with vanilla DiT backbones are currently held by AlphaFlow (arXiv:2510.20771), achieving an FID of $2.58$ on ImageNet $256\times256$ \citep{zhang2025alphaflow}. MeanFlow (arXiv:2505.13447) reports a 1-NFE FID of $3.43$ on the same benchmark \citep{geng2025mean}. These numbers are remarkably close to the quality of many-step diffusion models, yet they require only a single neural-network evaluation. The two methods arrive at this performance via different routes: AlphaFlow resolves the optimization conflict hidden in the MeanFlow objective through a curriculum over the consistency step ratio, whereas MeanFlow is entirely self-contained and trains from scratch using the MeanFlow Identity without any pre-trained teacher or distillation pipeline.
 
-\textbf{Few-step generation.} When the budget is relaxed to four function evaluations, TVM (arXiv:2511.19797) pushes the FID down to $1.99$ on ImageNet $256\times256$, a figure that rivals the best many-step diffusion models \citep{zhou2026terminal}. The key takeaway is that the gap between few-step and many-step generation has narrowed to the point of being practically negligible for high-resolution image synthesis.
+\textbf{Few-step generation.} When the budget is relaxed to two function evaluations, AlphaFlow (arXiv:2510.20771) pushes the FID down to $2.15$ on ImageNet $256\times256$ \citep{zhang2025alphaflow}. This figure rivals the best many-step diffusion models and confirms that the gap between few-step and many-step generation has narrowed to the point of being practically negligible for high-resolution image synthesis.
 
-\textbf{Training efficiency.} Consistency-FM (arXiv:2407.02398) reports a $4.4\times$ training-speedup over standard consistency models and a $1.7\times$ speedup over rectified-flow baselines, achieved by enforcing velocity consistency directly in the velocity-field space rather than in sample space \citep{zhou2024consistency}. TVM (arXiv:2511.19797) additionally reports a $65\%$ speedup in the backward pass by fusing Jacobian-Vector-Product computations into a custom Flash Attention kernel \citep{zhou2026terminal}. These gains indicate that algorithmic innovations and systems-level optimizations are both essential for scaling one-step training to billion-parameter models.
+\textbf{Training efficiency.} Consistency-FM (arXiv:2407.02398) reports a $4.4\times$ training-speedup over standard consistency models and a $1.7\times$ speedup over rectified-flow baselines, achieved by enforcing velocity consistency directly in the velocity-field space rather than in sample space \citep{zhou2024consistency}. AlphaFlow (arXiv:2510.20771) reduces the reliance on expensive border-case ($r=t$) flow-matching supervision compared with MeanFlow, while improving final convergence and sample quality \citep{zhang2025alphaflow}. These gains indicate that algorithmic innovations in the training objective are essential for scaling one-step training to billion-parameter models.
 
 \subsection{Flow-Path Straightness and Transport Cost}
 
@@ -51,16 +51,16 @@ Although FID is the headline metric, the geometric quality of the learned flow--
     \midrule
     Consistency-FM (2407.02398) & No & Limited & Velocity consistency \\
     MeanFlow (2505.13447) & No & 256$\times$256 & MeanFlow Identity \\
-    TVM (2511.19797) & No & 256$\times$256 & $W_2$ bound (terminal) \\
+    AlphaFlow (2510.20771) & No & 256$\times$256 & Curriculum unification \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-The empirical landscape reveals two broad strategies: (1) \emph{training from scratch} (MeanFlow, TVM), which avoids the cost and dependency of a pre-trained teacher but demands careful architectural and optimization design; and (2) \emph{distillation or constrained training} (Consistency-FM), which avoids the need for a pre-trained teacher but uses additional structure such as velocity consistency or multi-segment decomposition to handle complex distributions. Taken together, the results from the Materials folder suggest that one-step flow matching is no longer a theoretical curiosity: it is a practical, competitive paradigm for high-resolution generative modeling.
+The empirical landscape reveals two broad strategies: (1) \emph{training from scratch} (MeanFlow, AlphaFlow), which avoids the cost and dependency of a pre-trained teacher but demands careful optimization design; and (2) \emph{distillation or constrained training} (Consistency-FM), which avoids the need for a pre-trained teacher but uses additional structure such as velocity consistency or multi-segment decomposition to handle complex distributions. Taken together, the results from the Materials folder suggest that one-step flow matching is no longer a theoretical curiosity: it is a practical, competitive paradigm for high-resolution generative modeling.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=0.9\linewidth]{Figures/figure_theory.pdf}
-  \caption{Conceptual summary of the empirical progression: from flow matching (arXiv:2210.02747) to one-step results (MeanFlow, arXiv:2505.13447; TVM, arXiv:2511.19797).}
+  \caption{Conceptual summary of the empirical progression: from flow matching (arXiv:2210.02747) to one-step results (MeanFlow, arXiv:2505.13447; AlphaFlow, arXiv:2510.20771).}
   \label{fig:results-summary}
 \end{figure}
