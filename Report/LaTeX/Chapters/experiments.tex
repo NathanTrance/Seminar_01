@@ -8,8 +8,6 @@ Before presenting the empirical comparison, we summarize the experimental protoc
 
 The de facto benchmark for one-step generative modeling is class-conditional image generation on ImageNet \citep{deng2009imagenet} at $256\times256$ resolution, training on the standard ImageNet-1K training split and evaluating on the validation split. The primary evaluation metric is the Fréchet Inception Distance (FID) \citep{heusel2017gans}, which measures the distributional distance between generated and real image features extracted by an Inception-V3 network \citep{szegedy2016rethinking}. We also report the Fréchet DINOv2 Distance (FDD), which uses DINOv2 features and is less sensitive to minor misalignments than FID. For both metrics, lower values indicate better sample quality.
 
-The number of function evaluations (NFE) required per sample is reported alongside each result. For flow-based methods, NFE is determined by the number of neural-network evaluations during numerical integration; for one-step methods, NFE is ideally one.
-
 % TODO(team): Add specific dataset details (train/val sizes, preprocessing) and any non-image benchmarks if applicable.
 
 % ---------------------------------------------------------------------
@@ -24,7 +22,7 @@ Evaluation follows \citet{zhang2025alphaflow}: we generate 50,000 class-conditio
 % ---------------------------------------------------------------------
 \subsection{Baselines}
 
-The main empirical comparison in \Cref{sec:results} contrasts the three surveyed velocity-based methods---Consistency-FM, MeanFlow, and AlphaFlow---trained at the DiT-B/2, DiT-XL/2, and DiT-XL/2+ scales. In addition, we report representative few-step baselines from the AlphaFlow paper that use the same DiT-XL/2 backbone and are trained from scratch, including Shortcut-XL/2, IMM-XL/2, MeanFlow-XL/2, MeanFlow-XL/2+, and FACM-XL/2. These baselines provide a direct parameter-matched comparison against our XL/2 and XL/2+ models.
+The main empirical comparison in \Cref{sec:results} contrasts the three surveyed velocity-based methods---Consistency-FM, MeanFlow, and AlphaFlow---trained using the DiT-B/2, DiT-XL/2, and DiT-XL/2+ backbones. In addition, we report representative few-step baselines from the AlphaFlow paper that use the same DiT-XL/2 backbone and are trained from scratch, including Shortcut-XL/2, IMM-XL/2, MeanFlow-XL/2, MeanFlow-XL/2+, and FACM-XL/2. These baselines provide a direct parameter-matched comparison against our XL/2 and XL/2+ models.
 
 % TODO(team): Add citation keys for Shortcut, IMM, and FACM if desired.
 
