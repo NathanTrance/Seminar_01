@@ -2,16 +2,16 @@
 \caption{Meta Flow Map (MFM) Training}
 \label{alg:meta_flow_maps}
 \begin{algorithmic}[1]
-\Require Data $x_0$, $x_1$, noise $\epsilon$, meta flow map $X_{\text{mfm}}$, optimizer
+\Require Data $x$, noise $\epsilon$, meta flow map $X_{\text{mfm}}$, optimizer
 \State Sample $s, w, u \sim \text{Uniform}(0,1)$ with $s < w < u$
-\State Build stochastic interpolants $I_s, I_w, I_u$ with shared $\epsilon$
+\State Build stochastic interpolants $I_s, I_w, I_u$ with shared noise $\epsilon$
 \State $v_{u,u} \gets X_{\text{mfm}}(I_u, u, u)$ \Comment{Instantaneous velocity (diagonal)}
-\State $\dot{I}_u \gets \dot{\alpha}_u \, x_0 + \dot{\beta}_u \, x_1 + \dot{\gamma}_u \, \epsilon$
+\State $\dot{I}_u \gets \dot{\alpha}_u \, x + \dot{\beta}_u \, \epsilon + \dot{\gamma}_u \, \xi$ \Comment{$\xi$ = extra randomness}
 \State $\mathcal{L}_{\text{diag}} \gets \| v_{u,u} - \dot{I}_u \|^2$ \Comment{Diagonal flow matching loss}
-\State $x_w \gets X_{\text{mfm}}(I_s, s, w)$ \Comment{Map $s \to w$}
-\State $x_{u}^{\text{composed}} \gets X_{\text{mfm}}(x_w, w, u)$ \Comment{Map $w \to u$}
-\State $x_{u}^{\text{direct}} \gets X_{\text{mfm}}(I_s, s, u)$ \Comment{Direct map $s \to u$}
-\State $\mathcal{L}_{\text{cons}} \gets \| x_{u}^{\text{composed}} - x_{u}^{\text{direct}} \|^2$ \Comment{Consistency (semigroup) loss}
+\State $I_w \gets X_{\text{mfm}}(I_s, s, w)$ \Comment{Map $s \to w$}
+\State $I_{u}^{\text{composed}} \gets X_{\text{mfm}}(I_w, w, u)$ \Comment{Map $w \to u$}
+\State $I_{u}^{\text{direct}} \gets X_{\text{mfm}}(I_s, s, u)$ \Comment{Direct map $s \to u$}
+\State $\mathcal{L}_{\text{cons}} \gets \| I_{u}^{\text{composed}} - I_{u}^{\text{direct}} \|^2$ \Comment{Consistency (semigroup) loss}
 \State $\mathcal{L} \gets \mathcal{L}_{\text{diag}} + \mathcal{L}_{\text{cons}}$
 \State Update parameters with $\nabla \mathcal{L}$
 \State \Return $\mathcal{L}$

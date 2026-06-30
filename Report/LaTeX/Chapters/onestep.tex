@@ -1,24 +1,34 @@
 \section{One-Step Generative Modeling}
 \label{sec:onestep}
 
-Building on the flow matching framework, recent methods have developed increasingly sophisticated techniques for learning one-step or few-step generators. We discuss three representative velocity-based approaches that span the spectrum from training from scratch to distillation from pre-trained models. Flow-map distillation methods are related but outside the scope of this survey; we noted them briefly in \cref{subsec:related-methods}.
+Building on the flow matching framework, recent methods have developed increasingly sophisticated techniques for learning one-step or few-step generators. We discuss four representative velocity-based approaches: consistency flow matching, which enforces straightness through velocity consistency; shortcut models, which learn via self-consistency bootstrapping; mean flows, which train from scratch using the mean-flow identity; and AlphaFlow, which unifies these ideas through curriculum learning. All four methods share a common lineage through consistency models, as discussed in \cref{subsec:consistency-models}.
 
 \subsection{Consistency Flow Matching}
 \label{subsec:consistencyfm}
 
-Consistency Flow Matching (Consistency-FM) \citep{zhou2024consistency} proposes to enforce \emph{velocity consistency} along flow trajectories, directly defining straight flows without requiring optimal transport coupling or expensive transport plans.
+Consistency Flow Matching (Consistency-FM) \citep{zhou2024consistency} proposes to enforce \emph{velocity consistency} along flow trajectories. Unlike rectified flow, which iteratively straightens trajectories through repeated simulation and retraining, Consistency-FM directly defines straight flows by imposing a self-consistency constraint on the velocity field itself. This avoids both the computational cost of optimal transport approximations and the accumulation error of multi-stage rectification.
 
-Given a flow trajectory $\gamma_x(t)$ with velocity $v(t, \gamma_x(t))$, the consistency condition requires the velocity to be constant along the trajectory:
+\paragraph{Velocity consistency.} Given a flow trajectory $\gamma_x(t)$ with learned velocity $v_\theta(t, \gamma_x(t))$, the core idea is to require the velocity to be constant along each trajectory:
 \begin{equation}
-    v(t, \gamma_x(t)) = v(s, \gamma_x(s)) \quad \forall t, s \in [0,1].
+    v(t, \gamma_x(t)) = v(r, \gamma_x(r)) \quad \forall t, r \in [0,1].
+    \label{eq:cfm-cond1}
 \end{equation}
-This is equivalent to the trajectory condition $\gamma_x(t) + (1-t) v(t, \gamma_x(t)) = \gamma_x(s) + (1-s) v(s, \gamma_x(s))$, which implies that the quantity $f(t, x_t) = x_t + (1-t) v_\theta(t, x_t)$ is constant along the path. The training objective is:
+However, imposing \cref{eq:cfm-cond1} alone admits trivial solutions (e.g., $v_\theta \equiv 0$). The key theoretical insight is an equivalence lemma \citep{zhou2024consistency}: under mild regularity conditions, \cref{eq:cfm-cond1} is equivalent to a trajectory-level condition
 \begin{equation}
-    \mathcal{L}_\theta = \mathbb{E}_{t, x_t, x_{t+\Delta t}} \Big[ \| f_\theta(t, x_t) - f_{\theta^-}(t+\Delta t, x_{t+\Delta t}) \|^2 + \alpha \| v_\theta(t, x_t) - v_{\theta^-}(t+\Delta t, x_{t+\Delta t}) \|^2 \Big],
+    \gamma_x(t) + (1-t) \, v(t, \gamma_x(t)) = \gamma_x(r) + (1-r) \, v(r, \gamma_x(r)),
+    \label{eq:cfm-cond2}
 \end{equation}
-where $\theta^-$ denotes an exponentially moving average of the parameters. The first term enforces consistency in the endpoint prediction, while the second term regularizes the velocity field.
+which requires the quantity $f_\theta(t, z_t) \triangleq z_t + (1-t) \, v_\theta(t, z_t)$ to be invariant along the path. At $t = 1$ (the noise endpoint), this quantity evaluates to $\epsilon$, and by invariance it predicts the data sample at any $t$, thereby tying the consistency constraint to the data distribution itself.
 
-For complex distributions where a single straight path is insufficient, Consistency-FM introduces \emph{multi-segment training}, which divides the time interval $[0,1]$ into $K$ segments and learns a consistent velocity $v_\theta^i$ within each segment. This allows piece-wise linear trajectories that can better approximate curved transport paths.
+\paragraph{Training objective.} The loss enforces both \cref{eq:cfm-cond1,eq:cfm-cond2} between nearby timesteps:
+\begin{equation}
+    \mathcal{L}_\theta = \mathbb{E}_{t, z_t, z_{t+\Delta t}} \Big[ \| f_\theta(t, z_t) - f_{\theta^-}(t+\Delta t, z_{t+\Delta t}) \|^2 + \lambda \| v_\theta(t, z_t) - v_{\theta^-}(t+\Delta t, z_{t+\Delta t}) \|^2 \Big],
+\end{equation}
+where $\theta^-$ is an EMA of the parameters and $\lambda$ balances the two terms. The first term enforces endpoint consistency (trajectory invariance of $f_\theta$), while the second regularizes the velocity field. An asymptotic analysis \citep{zhou2024consistency} shows that minimizing this loss interpolates between two desiderata: matching the ground-truth velocity field (as in standard FM), and enforcing a consistency condition on the velocity's material derivative $\partial_t v_\theta + u \cdot \nabla v_\theta$, which drives the velocity toward constancy along trajectories.
+
+\paragraph{Multi-segment training.} For complex distributions where a single straight trajectory is insufficient, Consistency-FM divides $[0,1]$ into $K$ equal segments and learns a separate consistent velocity $v_\theta^i$ within each segment $[i/K, (i+1)/K]$. Each segment obeys its own version of the loss with the endpoint adjusted to the segment boundary, yielding piecewise-linear trajectories that can approximate curved transport paths. The theoretical analysis further shows that if the ground-truth velocity is consistent within a segment, Consistency-FM recovers it exactly (up to the oracle velocity), providing a formal error bound on the learned field.
+
+\paragraph{One-step sampling.} Under perfect velocity consistency, the velocity field is constant along each trajectory: $v(t, z_t) = v(0, x) = \epsilon - x$. Since the ODE $dz_t/dt = v$ is linear with constant velocity, integrating backward from $t=1$ to $t=0$ yields $x = \epsilon - v_\theta(\epsilon, 1)$. In practice, a single network evaluation at $t=1$ produces a one-step generation.
 
 \input{Pseudocode/consistency_fm.tex}
 
@@ -27,6 +37,46 @@ For complex distributions where a single straight path is insufficient, Consiste
   \includegraphics[width=0.8\linewidth]{Figures/figure_consistency_fm.pdf}
   \caption{Placeholder: Illustration of Consistency Flow Matching velocity consistency. Replace with a figure showing the multi-segment training scheme.}
   \label{fig:placeholder-consistency-fm}
+\end{figure}
+
+\subsection{Shortcut Models}
+\label{subsec:shortcut}
+
+Shortcut Models \citep{frans2024shortcut} approach one-step generation through a self-consistency principle. The key insight is that a single large step along the probability-flow ODE must be consistent with two consecutive smaller steps that span the same interval. Unlike Consistency-FM, which enforces consistency in the instantaneous velocity field, shortcut models directly learn a mapping conditioned on the desired step size.
+
+The model learns a \emph{shortcut} $s_\theta(z_t, r, t)$ that predicts the average velocity from the current (later) time $t$ to a target (earlier) time $r$ ($r < t$). Given the state $z_t$ and the interval $[r, t]$, a single step toward data is:
+\begin{equation}
+    z_r = z_t - (t - r) \, s_\theta(z_t, r, t).
+\end{equation}
+For one-step generation, starting from noise $z_1 = \epsilon$ and setting $r=0, t=1$ yields $x = \epsilon - s_\theta(\epsilon, 0, 1)$.
+
+The training objective exploits a \emph{self-consistency} decomposition: a shortcut over a large interval can be expressed as the average of two consecutive shortcuts over half-intervals. Let $m = (r + t)/2$ be the midpoint:
+\begin{equation}
+    s(z_t, r, t) = \frac{s(z_t, m, t) + s(z_m, r, m)}{2},
+    \label{eq:sc-self-consistency}
+\end{equation}
+where $z_m = z_t - (t - m) \, s_\theta(z_t, m, t)$ is obtained by following the first half-step prediction. This yields the self-consistency training loss:
+\begin{equation}
+    \mathcal{L}_{\text{SC}}(\theta) = \mathbb{E}_{r,t,x,\epsilon} \Big[ \big\| s_\theta(z_r, r, t) - \text{sg}\Big( \frac{1}{2} \big( s_\theta(z_r, r, m) + s_\theta(z_m, m, t) \big) \Big) \big\|^2 \Big],
+    \label{eq:sc-loss}
+\end{equation}
+where $\text{sg}$ denotes the stop-gradient operator.
+
+To ground the model at small step sizes, shortcut models include a flow matching base case. As $t \to r$, the shortcut reduces to the instantaneous velocity, and the model is trained with standard flow matching:
+\begin{equation}
+    \mathcal{L}_{\text{FM}}(\theta) = \mathbb{E}_{t, \epsilon, x} \big\| s_\theta(z_t, t, t) - (\epsilon - x) \big\|^2.
+\end{equation}
+In practice, the training batch mixes a fraction $k$ of self-consistency samples ($r < t$) with $1 - k$ flow matching samples ($r = t$), yielding a combined objective trained jointly in a single phase.
+
+A key practical advantage of shortcut models is that they require no JVP computation: the self-consistency target is constructed from two additional forward passes rather than through derivatives. This makes training computationally cheaper than JVP-based methods, with only $\sim 16\%$ more compute than a standard flow-matching model. Furthermore, shortcut models can be trained end-to-end from scratch without a pre-trained teacher, distillation stages, or carefully scheduled curricula. \Cref{fig:shortcut} illustrates this training procedure: at $d \approx 0$ the objective reduces to standard flow matching, while targets for larger step sizes are bootstrapped by composing two half-sized shortcuts.
+
+\input{Pseudocode/shortcut_models.tex}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{Figures/Shortcut.png}
+  \caption{Overview of shortcut model training \citep{frans2024shortcut}. At $d \approx 0$, the shortcut objective is equivalent to the flow matching objective and can be trained by regressing onto empirical $(\epsilon, x)$ pairs. Targets for larger $d$ are constructed by concatenating a sequence of two $d/2$ shortcuts. Both objectives are trained jointly in a single end-to-end phase.}
+  \label{fig:shortcut}
 \end{figure}
 
 \subsection{Mean Flows}
@@ -38,7 +88,7 @@ The key insight is to model the \emph{average velocity} rather than the instanta
 \begin{equation}
     u(z_t, r, t) = \frac{1}{t-r} \int_r^t v(z_\tau, \tau) \, d\tau.
 \end{equation}
-Differentiating the definition $(t-r)u = \int_r^t v \, d\tau$ with respect to $t$ yields the \emph{MeanFlow Identity}:
+While the instantaneous velocity $v$ determines the tangent direction of the path, the average velocity $u$ is aligned with the net displacement $(t-r)\,u$ and is generally not parallel to $v$; \cref{fig:mean-flows-field} visualizes this field for several values of $t$. Differentiating the definition $(t-r)u = \int_r^t v \, d\tau$ with respect to $t$ yields the \emph{MeanFlow Identity}:
 \begin{equation}
     u(z_t, r, t) = v(z_t, t) - (t-r) \frac{d}{dt} u(z_t, r, t),
 \end{equation}
@@ -46,17 +96,33 @@ where the total derivative $\frac{d}{dt} u = v \cdot \partial_z u + \partial_t u
 
 The training objective regresses the network prediction $u_\theta$ against the target derived from the MeanFlow Identity:
 \begin{equation}
-    \mathcal{L}(\theta) = \mathbb{E} \| u_\theta(z_t, r, t) - \text{sg}(v(z_t, t) - (t-r)(v(z_t, t) \cdot \partial_z u_\theta + \partial_t u_\theta)) \|^2,
+    \mathcal{L}(\theta) = \mathbb{E} \| u_\theta(z_t, r, t) - \text{sg}\big(v(z_t, t) - (t-r)(v(z_t, t) \cdot \partial_z u_\theta + \partial_t u_\theta)\big) \|^2,
 \end{equation}
-where $\text{sg}$ denotes the stop-gradient operator. Importantly, MeanFlow trains entirely from scratch without distillation or curriculum learning, and achieves state-of-the-art results: FID 3.43 with a single function evaluation on ImageNet 256$\times$256.
+where $\text{sg}$ denotes the stop-gradient operator.
+
+\paragraph{Classifier-free guidance.} MeanFlow bakes classifier-free guidance (CFG) directly into the training objective, avoiding the standard approach of combining conditional and unconditional outputs at inference time (which would double NFE). The key idea is to define a CFG-augmented ground-truth velocity field:
+\begin{equation}
+    v^{\text{cfg}}(z_t, t \mid \mathbf{c}) \triangleq \omega \, v(z_t, t \mid \mathbf{c}) + (1-\omega) \, v(z_t, t),
+\end{equation}
+with an associated CFG average velocity $u^{\text{cfg}}$ that satisfies the same MeanFlow Identity. Crucially, the unconditional component $v(z_t, t)$ is replaced in the training target by the network's own unconditional prediction $u_\theta^{\text{cfg}}(z_t, t, t)$, yielding a self-contained objective:
+\begin{equation}
+    \tilde{v}_t \triangleq \omega \, v_t + (1-\omega) \, u_\theta^{\text{cfg}}(z_t, t, t),
+\end{equation}
+which serves as the $\tilde{v}_t$ that feeds into the MeanFlow Identity in place of $v(z_t, t)$. Because the average velocity $u_\theta^{\text{cfg}}$ directly models the CFG-augmented field, \textbf{no additional combination is needed at sampling time}: a single evaluation $x = \epsilon - u_\theta^{\text{cfg}}(\epsilon, 0, 1 \mid \mathbf{c})$ produces a guided one-step sample. AlphaFlow adopts the same CFG formulation, detailed in \cref{subsec:alphaflow}.
+
+\paragraph{One-step sampling.} Given a trained MeanFlow model, one-step generation follows directly from the definition of the average velocity. Since $z_r = z_t - (t-r) \, u_\theta(z_t, r, t)$, setting $r=0$ and $t=1$ yields:
+\begin{equation}
+    x = \epsilon - u_\theta(\epsilon, 0, 1).
+\end{equation}
+This requires a single forward pass of the network, with no iterative ODE integration. With CFG enabled, the same formula applies using $u_\theta^{\text{cfg}}$ in place of $u_\theta$, preserving the 1-NFE property.
 
 \input{Pseudocode/mean_flows.tex}
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=0.8\linewidth]{Figures/figure_mean_flows.pdf}
-  \caption{Placeholder: Illustration of the MeanFlow Identity and average velocity. Replace with a figure showing how JVP computes the total derivative.}
-  \label{fig:placeholder-mean-flows}
+  \includegraphics[width=\linewidth]{Figures/MeanFlow.jpg}
+  \caption{The field of average velocity $u(z, r, t)$ \citep{geng2025mean}. \textbf{Leftmost:} While the instantaneous velocity $v$ determines the tangent direction of the path, the average velocity $u(z, r, t)$ is generally not aligned with $v$. The average velocity is aligned with the displacement, which is $(t - r) \, u(z, r, t)$. \textbf{Right three subplots:} The field $u(z, r, t)$ is conditioned on both $r$ and $t$, shown here for $t = 0.5$, $0.7$, and $1.0$.}
+  \label{fig:mean-flows-field}
 \end{figure}
 
 \subsection{AlphaFlow}
@@ -78,7 +144,7 @@ where $s = \alpha r + (1-\alpha)t$ and $z_s = z_t + (t-s) v_t$. This family reco
 
 The practical training schedule proceeds in three phases. First, the model is pretrained with $\alpha = 1$ (trajectory flow matching) to quickly reach a reliable noise-to-data mapping. Then $\alpha$ is annealed smoothly toward 0, transitioning from the low-variance flow-matching objective to the low-bias MeanFlow objective. Finally, the model is fine-tuned with $\alpha \approx 0$. Because the early phase already optimizes trajectory flow matching, AlphaFlow requires far less border-case flow-matching supervision than MeanFlow while achieving better final performance.
 
-On class-conditional ImageNet 256$\times$256 with vanilla DiT backbones, AlphaFlow sets a new state of the art among from-scratch trained models of this class, reaching FID 2.58 with 1 NFE and FID 2.15 with 2 NFEs.
+\paragraph{One-step sampling.} Since AlphaFlow shares the same average-velocity parameterization $u_\theta$, its one-step sampling is identical to MeanFlow: $x = \epsilon - u_\theta(\epsilon, 0, 1)$. For few-step generation, AlphaFlow can employ either ODE sampling or consistency sampling, selecting the intermediate timestep that yields the best trade-off between FID and FDD. AlphaFlow adopts the same CFG formulation as MeanFlow (\cref{subsec:meanflow}), baking guidance into the training target so that a single NFE suffices for guided generation.
 
 \input{Pseudocode/alphaflow.tex}
 

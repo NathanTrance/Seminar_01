@@ -2,12 +2,12 @@
 \caption{Flow Matching Training}
 \label{alg:flow_matching}
 \begin{algorithmic}[1]
-\Require Data $x_1$, noise $x_0$, velocity network $v_\theta$, optimizer
+\Require Data $x$, noise $\epsilon$, velocity network $v_\theta$, optimizer
 \State Sample $t \sim \text{Uniform}(0,1)$
-\State $x_t \gets (1 - t) \, x_0 + t \, x_1$
-\State $u_t \gets x_1 - x_0$ \Comment{Conditional velocity for OT path}
-\State $v_{\text{pred}} \gets v_\theta(x_t, t)$
-\State $\mathcal{L} \gets \| v_{\text{pred}} - u_t \|^2$
+\State $z_t \gets (1 - t) \, x + t \, \epsilon$
+\State $v_t \gets \epsilon - x$ \Comment{Conditional velocity for OT path}
+\State $v_{\text{pred}} \gets v_\theta(z_t, t)$
+\State $\mathcal{L} \gets \| v_{\text{pred}} - v_t \|^2$
 \State Update $\theta$ with $\nabla_\theta \mathcal{L}$
 \State \Return $\mathcal{L}$
 \end{algorithmic}

@@ -1,7 +1,7 @@
 \section{Results}
 \label{sec:results}
 
-Having reviewed the methodological foundations of one-step flow matching, we now turn to the empirical results obtained under the protocol described in \Cref{sec:experiments}. \Cref{tab:imagenet-results} reports 1-NFE and 2-NFE FID and FDD scores, parameter counts, and training epochs for the three surveyed velocity-based methods and a set of representative baselines. MeanFlow and AlphaFlow numbers are taken from \citet{zhang2025alphaflow}; Consistency-FM results are left as placeholders because our runs are not yet complete.
+Having reviewed the methodological foundations of one-step flow matching, we now turn to the empirical results obtained under the protocol described in \Cref{sec:experiments}. \Cref{tab:imagenet-results} reports 1-NFE and 2-NFE FID and FDD scores, parameter counts, and training epochs for the four surveyed velocity-based methods and a set of representative baselines. MeanFlow and AlphaFlow numbers are taken from \citet{zhang2025alphaflow}; Consistency-FM and Shortcut results are left as placeholders because our runs are not yet complete.
 
 \begin{table}[t]
   \centering
@@ -15,13 +15,15 @@ Having reviewed the methodological foundations of one-step flow matching, we now
     Method & Params & Epochs & FID $\downarrow$ & FDD $\downarrow$ & FID $\downarrow$ & FDD $\downarrow$ \\
     \midrule
     % \multicolumn{7}{@{}l}{\emph{Few-step baselines from the AlphaFlow paper}} \\
-    Shortcut-XL/2 & 675M & 160 & 10.60 & --- & --- & --- \\
     IMM-XL/2 & 676M & 3840 & 8.05 & --- & 3.88 & --- \\
     FACM-XL/2 & 675M & 800 + 250$\times$2 & --- & --- & 2.07 & --- \\
     \midrule
-    % \multicolumn{7}{@{}l}{\emph{Surveyed methods (our planned comparison)}} \\
-    Consistency-FM-B/2 & 131M & 240 & TBD & TBD & TBD & TBD \\
-    Consistency-FM-XL/2 & 676M & 240 & TBD & TBD & TBD & TBD \\
+    Shortcut-XL/2 & 675M & 160 & 10.60 & --- & --- & --- \\
+    Shortcut-XL/2 & 676M & 240 & TBD & TBD & TBD & TBD \\
+    % \midrule
+    % % \multicolumn{7}{@{}l}{\emph{Surveyed methods (our planned comparison)}} \\
+    % Consistency-FM-B/2 & 131M & 240 & TBD & TBD & TBD & TBD \\
+    % Consistency-FM-XL/2 & 676M & 240 & TBD & TBD & TBD & TBD \\
     \midrule
     MeanFlow-B/2 & 131M & 240 & 6.04 & 312.3 & 5.17 & 232.1 \\
     MeanFlow-XL/2 & 676M & 240 & 3.47 & 185.8 & 2.46 & 108.7 \\
@@ -36,16 +38,16 @@ Having reviewed the methodological foundations of one-step flow matching, we now
 \begin{figure}[t]
   \centering
   \includegraphics[width=0.95\linewidth]{Figures/figure_terminal_velocity.pdf}
-  \caption{Placeholder: class-conditional ImageNet-1K 256$\times$256 samples generated with 1 NFE. From left to right: CFM baseline, Consistency-FM, MeanFlow, and AlphaFlow. Replace with actual generated samples.}
+  \caption{Placeholder: class-conditional ImageNet-1K 256$\times$256 samples generated with 1 NFE. From left to right: CFM baseline, Consistency-FM, Shortcut, MeanFlow, and AlphaFlow. Replace with actual generated samples.}
   \label{fig:alphaflow-samples}
 \end{figure}
 
-\textbf{One-step generation.} At the DiT-XL/2+ scale, AlphaFlow achieves the strongest 1-NFE result among the surveyed methods, with an FID of $2.58$ \citep{zhang2025alphaflow}. The same AlphaFlow-XL/2 checkpoint reaches $2.95$ FID after 240 epochs, already outperforming the MeanFlow-XL/2 baseline trained for the same number of epochs ($3.47$ FID). At the smaller DiT-B/2 scale, AlphaFlow reduces the 1-NFE FID from $6.04$ (MeanFlow) to $5.40$, showing consistent gains across model capacities. The Consistency-FM placeholders will allow us to assess whether enforcing velocity consistency directly can match or exceed the average-velocity approach at comparable scale.
+\textbf{One-step generation.} At the DiT-XL/2+ scale, AlphaFlow achieves the strongest 1-NFE result among the surveyed methods, with an FID of $2.58$ \citep{zhang2025alphaflow}. The same AlphaFlow-XL/2 checkpoint reaches $2.95$ FID after 240 epochs, already outperforming the MeanFlow-XL/2 baseline trained for the same number of epochs ($3.47$ FID). At the smaller DiT-B/2 scale, AlphaFlow reduces the 1-NFE FID from $6.04$ (MeanFlow) to $5.40$, showing consistent gains across model capacities. The Consistency-FM and Shortcut placeholders will allow us to assess whether self-consistency or velocity-consistency approaches can match or exceed the average-velocity methods at comparable scale.
 
 \textbf{Few-step generation.} With two function evaluations, AlphaFlow-XL/2+ reaches $2.15$ FID, and AlphaFlow-XL/2 reaches $2.34$ FID, both below the MeanFlow-XL/2 result of $2.46$ FID \citep{zhang2025alphaflow}. The gap is smaller at DiT-B/2 ($5.01$ vs.~$5.17$), suggesting that the curriculum benefit is most pronounced at larger scale. The external FACM-XL/2 baseline reports $2.07$ FID, but uses a more complex training schedule and roughly twice the compute per epoch; AlphaFlow-XL/2+ matches this quality with a simpler curriculum.
 
 \textbf{Training efficiency.} The results in \Cref{tab:imagenet-results} show that the AlphaFlow curriculum improves sample quality without increasing parameter count or training time per epoch. At DiT-B/2, AlphaFlow outperforms MeanFlow on both 1-NFE and 2-NFE FID while using less border-case ($r=t$) flow-matching supervision; the gain is larger at DiT-XL/2, where AlphaFlow-XL/2 reaches $2.95$ FID compared with MeanFlow-XL/2's $3.47$ FID after the same 240 epochs. This indicates that better optimization of the average-velocity objective can be more impactful than simply scaling model size or compute.
 
-\textbf{Scaling behavior.} Across all three methods, increasing model capacity from DiT-B/2 (131M parameters) to DiT-XL/2 (676M parameters) yields large FID improvements. For AlphaFlow, the 1-NFE FID drops from $5.40$ to $2.95$---a relative improvement of roughly $45\%$---and the 2-NFE FID drops from $5.01$ to $2.34$. The additional XL/2+ fine-tuning (240+60 epochs) brings a further modest gain to $2.58$ / $2.15$, suggesting that most of the benefit comes from the base scale and the curriculum, with extended training providing diminishing returns. Once Consistency-FM results are available, this scaling comparison will also reveal whether velocity-consistency training benefits more or less from increased capacity than the average-velocity approaches.
+\textbf{Scaling behavior.} Across all methods, increasing model capacity from DiT-B/2 (131M parameters) to DiT-XL/2 (676M parameters) yields large FID improvements. For AlphaFlow, the 1-NFE FID drops from $5.40$ to $2.95$---a relative improvement of roughly $45\%$---and the 2-NFE FID drops from $5.01$ to $2.34$. The additional XL/2+ fine-tuning (240+60 epochs) brings a further modest gain to $2.58$ / $2.15$, suggesting that most of the benefit comes from the base scale and the curriculum, with extended training providing diminishing returns. Once Consistency-FM and Shortcut results are available, this scaling comparison will also reveal whether velocity-consistency or self-consistency training benefits more or less from increased capacity than the JVP-based average-velocity approaches.
 
 \textbf{Comparison with baselines.} Among the few-step baselines, FACM-XL/2 achieves the strongest 2-NFE FID ($2.07$), but it uses a specialized training schedule with roughly twice the compute per epoch of AlphaFlow-XL/2. AlphaFlow-XL/2+ matches this performance ($2.15$) with a simpler curriculum and the same backbone. Shortcut-XL/2 and IMM-XL/2 remain competitive but lag behind, reflecting the advantage of directly optimizing the average velocity rather than relying on recursive reflow or multi-step distillation. Taken together, the results in \Cref{tab:imagenet-results} suggest that one-step flow matching is no longer a theoretical curiosity: it is a practical, competitive paradigm for high-resolution generative modeling.

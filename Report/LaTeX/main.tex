@@ -18,9 +18,21 @@
 \usepackage{graphicx}
 \usepackage{algorithm}
 \usepackage{algpseudocode}
+
+% --- Algorithm float style (ruled with horizontal rules) ---
+\floatstyle{ruled}
+\restylefloat{algorithm}
+
+% --- Algorithmic style ---
+\algrenewcommand\algorithmicrequire{\textbf{Require:}\,}
+\algrenewcommand\algorithmicensure{\textbf{Ensure:}\,}
+\algrenewcommand\algorithmiccomment[1]{\hfill \(\triangleright\) \textcolor[gray]{0.45}{\textit{\small #1}}}
+\algrenewcommand{\alglinenumber}[1]{\textcolor[gray]{0.5}{\footnotesize #1:}}
+
 \makeatletter
 \renewcommand{\theHALG@line}{ALG@line.\thealgorithm.\arabic{ALG@line}}
 \makeatother
+
 \usepackage{hyperref}
 \usepackage{cleveref}
 
@@ -56,7 +68,6 @@
 \input{Chapters/onestep}
 \input{Chapters/experiments}
 \input{Chapters/results}
-\input{Chapters/theory}
 \input{Chapters/conclusion}
 
 \input{Chapters/references}

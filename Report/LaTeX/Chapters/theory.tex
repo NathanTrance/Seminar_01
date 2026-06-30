@@ -1,7 +1,7 @@
 \section{Theoretical Analysis}
 \label{sec:theory}
 
-The methods presented in \Cref{sec:onestep} are grounded in distinct but related mathematical ideas. In this section we organize the theoretical foundations method-by-method, highlighting the guarantees and assumptions that underlie each approach. This structure is intended to grow in parallel with the empirical discussion in \Cref{sec:results}: each subsection below should correspond to one of the three velocity-based one-step methods surveyed in \Cref{sec:onestep}.
+The methods presented in \Cref{sec:onestep} are grounded in distinct but related mathematical ideas. In this section we organize the theoretical foundations method-by-method, highlighting the guarantees and assumptions that underlie each approach. Each subsection below corresponds to one of the four velocity-based one-step methods surveyed in \Cref{sec:onestep}.
 
 % ---------------------------------------------------------------------
 \subsection{Consistency Flow Matching}
@@ -11,15 +11,35 @@ Consistency Flow Matching enforces that the learned velocity is constant along i
 \begin{equation}
     v(t, \gamma_x(t)) = v(s, \gamma_x(s)) \quad \forall t, s \in [0,1].
 \end{equation}
-If this holds, the quantity $f(t, x_t) = x_t + (1-t) v_\theta(t, x_t)$ is independent of $t$, and a single Euler step from any $t$ lands exactly on the data endpoint $x_1$.
+If this holds, the quantity $f(t, z_t) = z_t + (1-t) v_\theta(t, z_t)$ is independent of $t$, and a single Euler step from any $t$ lands exactly on the data endpoint $x$.
 
-\paragraph{Straightness and one-step exactness.} For the optimal-transport path $x_t = (1-t) x_0 + t x_1$, the conditional velocity is the constant vector $x_1 - x_0$. A consistency model that perfectly matches this velocity produces straight trajectories; consequently, one Euler step of any step size is exact. This makes straightness both a geometric property and a practical predictor of single-step sample quality.
+\paragraph{Straightness and one-step exactness.} Under the OT path $z_t = (1-t)x + t\epsilon$, the conditional velocity is the constant vector $\epsilon - x$. A consistency model that perfectly matches this velocity produces straight trajectories; consequently, one Euler step of any step size is exact. This makes straightness both a geometric property and a practical predictor of single-step sample quality.
 
 \paragraph{Multi-segment training.} When a single straight path is insufficient, Consistency-FM divides $[0,1]$ into $K$ segments and enforces consistency within each segment. The resulting trajectories are piece-wise linear, giving a tunable trade-off between approximation fidelity and the strength of the consistency prior.
 
 \paragraph{Limitations of endpoint-only consistency.} Standard consistency models predict the clean sample directly from every noise level. Even a model with uniformly small per-step error can accumulate unbounded multi-step error, because small mistakes in the endpoint prediction are amplified when the model is applied sequentially. Consistency-FM mitigates this through multi-segment training; Mean Flows and AlphaFlow avoid it by predicting velocities rather than endpoints.
 
 % TODO(team): Add formal proposition/lemma on consistency implies straightness, and discuss the relationship to rectified flow / optimal transport.
+
+% ---------------------------------------------------------------------
+\subsection{Shortcut Models}
+\label{subsec:theory-shortcut}
+
+Shortcut Models are built on the observation that a large step along the ODE must be consistent with two consecutive smaller steps that span the same interval. This self-consistency is a direct consequence of the semigroup property of the flow.
+
+\paragraph{Self-consistency decomposition.} Let $s(z_t, r, t)$ denote the true shortcut from $t$ to $r$ along the ODE (with $r < t$), and let $m = (r+t)/2$ be the midpoint. Then:
+\begin{equation}
+    s(z_t, r, t) = \frac{s(z_t, m, t) + s(z_m, r, m)}{2},
+\end{equation}
+where $z_m = z_t - (t-m)\,s(z_t, m, t)$. This identity holds exactly for the true flow and serves as the self-consistency target during training \cref{eq:sc-loss}.
+
+\paragraph{Connection to MeanFlow.} The self-consistency identity can be seen as a discrete analogue of the MeanFlow Identity. While MeanFlow computes the consistency correction term via the JVP $\frac{d}{dt}u$, Shortcut Models approximate it through a bootstrapped two-step simulation with two additional forward passes. This trades analytic precision for computational efficiency at the cost of relying on the current (potentially inaccurate) model to construct targets.
+
+\paragraph{Base case grounding.} As $t \to r$, the shortcut $s(z_t, t, t)$ reduces to the instantaneous velocity, and training uses the standard flow matching loss. This grounding ensures correct behavior at small step sizes, and the self-consistency term propagates this correctness to larger steps.
+
+\paragraph{Gradient analysis.} The shortcut model objective can be viewed as a special case of the AlphaFlow family at $\alpha = 1/2$, where the target interpolates evenly between the flow matching and self-consistency terms. This connection explains why shortcut models are more stable than pure consistency training: the flow-matching fraction prevents the model from drifting into degenerate solutions while the self-consistency fraction drives few-step capability.
+
+% TODO(team): Add formal error analysis showing how self-consistency error propagates, and how it compares with the JVP-based approach in MeanFlow.
 
 % ---------------------------------------------------------------------
 \subsection{Mean Flows}
@@ -33,7 +53,7 @@ The total derivative is computed efficiently as a Jacobian--vector product (JVP)
 
 \paragraph{Self-consistency of average velocities.} Unlike methods that approximate the instantaneous velocity everywhere, Mean Flows predict the average velocity over arbitrary intervals. If the learned average velocity is consistent, integrating it over $[0,1]$ gives the correct displacement regardless of how many intermediate evaluation points are used. This is the source of Mean Flow's ability to train from scratch without a pre-trained teacher.
 
-\paragraph{Connection to exact transport.} When the true flow is straight, the average velocity equals the constant conditional velocity $x_1 - x_0$, and Mean Flows reduce to the OT-CFM objective. More generally, the MeanFlow Identity provides a principled way to regularize the velocity field so that long-interval predictions remain consistent with short-interval predictions.
+\paragraph{Connection to exact transport.} When the true flow is straight, the average velocity equals the constant conditional velocity $\epsilon - x$, and Mean Flows reduce to the OT-CFM objective. More generally, the MeanFlow Identity provides a principled way to regularize the velocity field so that long-interval predictions remain consistent with short-interval predictions.
 
 % TODO(team): Add a formal statement of the MeanFlow Identity, perhaps with a short proof sketch, and discuss its implications for stability and convergence.
 
@@ -55,6 +75,6 @@ where $C$ is independent of $\theta$. The first term, $\mathcal{L}_{\text{TFM}}$
 \end{equation}
 with $s = \alpha r + (1-\alpha)t$. This objective interpolates between trajectory flow matching ($\alpha=1$), Shortcut Models ($\alpha=1/2$), and MeanFlow ($\alpha \to 0$). By annealing $\alpha$ from 1 to 0, training first converges to the low-variance flow-matching manifold and then gradually shifts to the low-bias MeanFlow objective, reducing the need for the expensive border-case ($r=t$) flow-matching supervision used in original MeanFlow.
 
-\paragraph{Practical implication.} AlphaFlow's analysis shows that the difficulty of training MeanFlow is not a flaw in the average-velocity parameterization itself, but an optimization conflict between two implicit sub-objectives. Resolving this conflict through curriculum learning yields stronger empirical results: on ImageNet 256$\times$256, AlphaFlow achieves FID 2.58 with 1 NFE and FID 2.15 with 2 NFEs, outperforming the MeanFlow baseline it builds on.
+\paragraph{Practical implication.} AlphaFlow's analysis shows that the difficulty of training MeanFlow is not a flaw in the average-velocity parameterization itself, but an optimization conflict between two implicit sub-objectives. Resolving this conflict through curriculum learning yields stronger empirical results: on ImageNet 256$\times$256, AlphaFlow achieves FID 2.58 with 1 NFE and FID 2.15 with 2 NFEs, outperforming the MeanFlow baseline it builds on. The fact that $\alpha = 1/2$ recovers the Shortcut Model objective further corroborates the unification: shortcut models can be seen as a fixed midpoint in the AlphaFlow continuum.
 
 % TODO(team): Add a short discussion of how the AlphaFlow curriculum relates to consistency-model curricula, and whether the gradient-conflict observation extends to other average-velocity methods.

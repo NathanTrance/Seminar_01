@@ -2,20 +2,20 @@
 \caption{Consistency Flow Matching Training}
 \label{alg:consistency_fm}
 \begin{algorithmic}[1]
-\Require Data $x_1$, noise $x_0$, velocity network $v_\theta$, EMA model $v_{\theta^-}$, optimizer, hyperparameter $\alpha$
+\Require Data $x$, noise $\epsilon$, velocity network $v_\theta$, EMA model $v_{\theta^-}$, optimizer, hyperparameter $\lambda$
 \State Sample $t \sim \text{Uniform}(0, 1 - \Delta t)$
-\State $x_t \gets (1 - t) \, x_0 + t \, x_1$
-\State $x_{t+\Delta t} \gets (1 - (t+\Delta t)) \, x_0 + (t+\Delta t) \, x_1$
-\State $v_t \gets v_\theta(x_t, t)$
-\State $v_{t+\Delta t} \gets v_\theta(x_{t+\Delta t}, t+\Delta t)$
-\State $f_t \gets x_t + (1 - t) \, v_t$
-\State $f_{t+\Delta t} \gets x_{t+\Delta t} + (1 - (t+\Delta t)) \, v_{t+\Delta t}$
+\State $z_t \gets (1 - t) \, x + t \, \epsilon$
+\State $z_{t+\Delta t} \gets (1 - (t+\Delta t)) \, x + (t+\Delta t) \, \epsilon$
+\State $v_t \gets v_\theta(z_t, t)$
+\State $v_{t+\Delta t} \gets v_\theta(z_{t+\Delta t}, t+\Delta t)$
+\State $f_t \gets z_t + (1 - t) \, v_t$
+\State $f_{t+\Delta t} \gets z_{t+\Delta t} + (1 - (t+\Delta t)) \, v_{t+\Delta t}$
 \State \Comment{with no grad}
-\State $f_{t+\Delta t}^{\text{ema}} \gets x_{t+\Delta t} + (1 - (t+\Delta t)) \, v_{\theta^-}(x_{t+\Delta t}, t+\Delta t)$
-\State $f_t^{\text{ema}} \gets x_t + (1 - t) \, v_{\theta^-}(x_t, t)$
+\State $f_{t+\Delta t}^{\text{ema}} \gets z_{t+\Delta t} + (1 - (t+\Delta t)) \, v_{\theta^-}(z_{t+\Delta t}, t+\Delta t)$
+\State $f_t^{\text{ema}} \gets z_t + (1 - t) \, v_{\theta^-}(z_t, t)$
 \State $\mathcal{L}_f \gets \| f_t - f_{t+\Delta t}^{\text{ema}} \|^2 + \| f_{t+\Delta t} - f_t^{\text{ema}} \|^2$
-\State $\mathcal{L}_v \gets \| v_t - v_{\theta^-}(x_{t+\Delta t}, t+\Delta t) \|^2 + \| v_{t+\Delta t} - v_{\theta^-}(x_t, t) \|^2$
-\State $\mathcal{L} \gets \mathcal{L}_f + \alpha \, \mathcal{L}_v$
+\State $\mathcal{L}_v \gets \| v_t - v_{\theta^-}(z_{t+\Delta t}, t+\Delta t) \|^2 + \| v_{t+\Delta t} - v_{\theta^-}(z_t, t) \|^2$
+\State $\mathcal{L} \gets \mathcal{L}_f + \lambda \, \mathcal{L}_v$
 \State Update $\theta$ with $\nabla_\theta \mathcal{L}$; update EMA model
 \State \Return $\mathcal{L}$
 \end{algorithmic}

@@ -1,0 +1,22 @@
+\begin{algorithm}[t]
+\caption{Shortcut Model Training}
+\label{alg:shortcut_models}
+\begin{algorithmic}[1]
+\Require Data $x$, noise $\epsilon$, shortcut network $s_\theta$, optimizer, self-consistency ratio $k$
+\State Sample $r, t \sim \text{Uniform}(0,1)$ with $r < t$
+\State $z_t \gets (1 - t) \, x + t \, \epsilon$ \Comment{Interpolant at later time}
+\State $v \gets \epsilon - x$ \Comment{Conditional velocity}
+\If{flow-matching base case ($r = t$)}
+    \State $s_{\text{tgt}} \gets v$ \Comment{Flow matching target}
+\Else
+    \State $m \gets (r + t) \,/\, 2$ \Comment{Midpoint}
+    \State $s_1 \gets s_\theta(z_t, m, t)$
+    \State $z_m \gets z_t - (t - m) \cdot s_1$ \Comment{First half-step (toward data)}
+    \State $s_2 \gets s_\theta(z_m, r, m)$
+    \State $s_{\text{tgt}} \gets \text{sg}\big( (s_1 + s_2) / 2 \big)$ \Comment{Self-consistency target}
+\EndIf
+\State $\mathcal{L} \gets \| s_\theta(z_t, r, t) - s_{\text{tgt}} \|^2$
+\State Update $\theta$ with $\nabla_\theta \mathcal{L}$
+\State \Return $\mathcal{L}$
+\end{algorithmic}
+\end{algorithm}

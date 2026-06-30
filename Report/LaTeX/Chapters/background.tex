@@ -6,20 +6,38 @@ Flow matching provides the mathematical foundation for the one-step methods surv
 \subsection{Flow Matching and Conditional Flow Matching}
 \label{subsec:fm-cfm}
 
-Flow Matching (FM) \citep{lipman2022flow} introduces a simulation-free paradigm for training Continuous Normalizing Flows (CNFs). The key idea is to learn a time-dependent velocity field $v_\theta(t, x)$ whose associated probability flow ODE transports a simple source distribution $p_0$ (typically Gaussian noise) to a target data distribution $p_1$:
+We adopt the following notation, which will be used consistently throughout this survey. Let $\epsilon \sim \mathcal{N}(0, I)$ denote a noise sample and $x \sim p_{\text{data}}$ a data sample. The scalar $t \in [0,1]$ parameterizes the interpolation from data ($t=0$) to noise ($t=1$). A conditional probability path is defined as
 \begin{equation}
-    \frac{d}{dt} x_t = v_\theta(t, x_t), \qquad x_0 \sim p_0, \quad x_1 \sim p_1.
+    z_t = \gamma_t \, x + \delta_t \, \epsilon,
+    \label{eq:general-path}
 \end{equation}
-Rather than simulating this ODE during training, FM defines a conditional path $x_t = \alpha_t x_0 + \beta_t x_1$ between each data-noise pair $(x_0, x_1)$ and regresses the network prediction against the corresponding conditional velocity $u_t = \dot{\alpha}_t x_0 + \dot{\beta}_t x_1$.
-
-The marginal velocity field is the expectation of $u_t$ over all $(x_0, x_1)$ pairs consistent with $x_t$, which is intractable to compute directly. Conditional Flow Matching (CFM) sidesteps this difficulty by using the conditional objective
+where $\gamma_t, \delta_t \colon [0,1] \to \mathbb{R}$ are differentiable functions satisfying $\gamma_0 = 1, \delta_0 = 0$ and $\gamma_1 = 0, \delta_1 = 1$. The conditional velocity along this path is
 \begin{equation}
-    \mathcal{L}_{\text{CFM}} = \mathbb{E}_{t, x_0, x_1} \| v_\theta(x_t, t) - u_t \|^2,
-    \label{eq:cfm-loss}
+    v_t = \dot{\gamma}_t \, x + \dot{\delta}_t \, \epsilon,
+    \label{eq:general-vel}
 \end{equation}
-which shares the same gradient with respect to $\theta$ as the intractable marginal objective while remaining computationally efficient \citep{lipman2022flow}. The minimizer of \cref{eq:cfm-loss} equals the true marginal velocity field, so training amounts to standard regression on sampled $(t, x_0, x_1)$ tuples.
+where $\dot{\gamma}_t = d\gamma_t/dt$ and $\dot{\delta}_t = d\delta_t/dt$.
 
-A particularly important choice is the \emph{optimal transport (OT) path}, where $\alpha_t = 1-t$ and $\beta_t = t$. This yields the straight-line interpolant $x_t = (1-t) x_0 + t x_1$ and a constant conditional velocity $u_t = x_1 - x_0$. These straight paths minimize transport cost, enable faster training, and have been shown to improve generalization and sample quality compared with the curved trajectories typical of diffusion models \citep{lipman2022flow}.
+Flow Matching (FM) \citep{lipman2022flow} is a simulation-free framework for training Continuous Normalizing Flows (CNFs) built on this path construction. The goal is to learn a time-dependent velocity field $v_\theta(z_t, t)$ whose associated probability flow ODE transports the source noise distribution to the target data distribution. Rather than simulating the ODE during training, FM regresses the network prediction against the conditional velocity $v_t$:
+
+\begin{equation}
+    \mathcal{L}_{\text{FM}}(\theta) = \mathbb{E}_{t,\, \epsilon,\, x} \big\| v_\theta(z_t, t) - v_t \big\|^2.
+    \label{eq:fm-loss}
+\end{equation}
+
+Although the true marginal velocity field is the expectation of $v_t$ over all $(\epsilon, x)$ pairs consistent with $z_t$---which is intractable to compute directly---Conditional Flow Matching (CFM) sidesteps this difficulty by using the conditional objective \cref{eq:fm-loss} directly. This objective shares the same gradient with respect to $\theta$ as the intractable marginal objective \citep{lipman2022flow}, so its minimizer equals the true marginal velocity field.
+
+A particularly important choice is the \emph{optimal transport (OT) path}, where $\gamma_t = 1-t$ and $\delta_t = t$. This yields the straight-line interpolant
+\begin{equation}
+    z_t = (1-t)\, x + t\, \epsilon,
+    \label{eq:ot-interpolant}
+\end{equation}
+and a constant conditional velocity
+\begin{equation}
+    v_t = \epsilon - x.
+    \label{eq:ot-velocity}
+\end{equation}
+These straight paths minimize transport cost, enable faster training, and have been shown to improve generalization and sample quality compared with the curved trajectories typical of diffusion models \citep{lipman2022flow}. Unless stated otherwise, all methods in this survey use the OT path defined by \cref{eq:ot-interpolant,eq:ot-velocity}.
 
 Flow matching thus provides the training backbone for all subsequent methods in this survey: it defines the probability flow ODE that one-step methods seek to compress, and the conditional regression objective that underlies both standard and one-step training.
 
@@ -28,7 +46,7 @@ Flow matching thus provides the training backbone for all subsequent methods in 
 \begin{figure}[t]
   \centering
   \includegraphics[width=0.9\linewidth]{Figures/2_flow_matching_diagram.png}
-  \caption{The Flow Matching blueprint. (a) The goal is to find a flow mapping samples $X_0$ from a known source or noise distribution $p$ into samples $X_1$ from an unknown target or data distribution $q$. (b) To do so, design a time-continuous probability path $(p_t)_{0\le t\le 1}$ interpolating between $p := p_0$ and $q := p_1$. (c) During training, use regression to estimate the velocity field $u_t$ known to generate $p_t$. (d) To draw a novel target sample $X_1 \sim q$, integrate the estimated velocity field $u_t^\theta(X_t)$ from $t = 0$ to $t = 1$, where $X_0 \sim p$ is a novel source sample.}
+  \caption{The Flow Matching blueprint. (a) The goal is to find a flow mapping samples from a known noise distribution into samples from an unknown target data distribution. (b) To do so, design a time-continuous probability path $(p_t)_{0\le t\le 1}$ interpolating between data and noise. (c) During training, use regression to estimate the velocity field $v_t$ known to generate $p_t$. (d) To draw a novel target sample $x \sim p_{\text{data}}$, integrate the estimated velocity field from $t = 1$ back to $t = 0$, where $z_1 = \epsilon \sim \mathcal{N}(0,I)$ is a novel noise sample.}
   \label{fig:flow-matching-blueprint}
 \end{figure}
 
@@ -43,12 +61,12 @@ Because Conditional Flow Matching is typically sampled with many-step ODE solver
 
 Formally, one Euler step of a flow-matching sampler can be written as
 \begin{equation}
-    x_{t+\Delta t} = x_t + \Delta t \, v_\theta(x_t, t),
+    z_{t+\Delta t} = z_t + \Delta t \, v_\theta(z_t, t),
     \label{eq:euler-step}
 \end{equation}
-where $v_\theta(x_t, t)$ is the neural velocity estimate. If we decompose the network into a feature extractor $\phi_\theta$ and a read-out head $g_\theta$, so that $v_\theta(x_t, t) = g_\theta\big(\phi_\theta(x_t, t)\big)$, then caching stores the features $h_t = \phi_\theta(x_t, t)$ from a previous step and reuses them when the timestep changes slowly:
+where $v_\theta(z_t, t)$ is the neural velocity estimate. If we decompose the network into a feature extractor $\phi_\theta$ and a read-out head $g_\theta$, so that $v_\theta(z_t, t) = g_\theta\big(\phi_\theta(z_t, t)\big)$, then caching stores the features $h_t = \phi_\theta(z_t, t)$ from a previous step and reuses them when the timestep changes slowly:
 \begin{equation}
-    \tilde{v}_\theta(x_t, t) = g_\theta\big(h_{t-\delta}\big).
+    \tilde{v}_\theta(z_t, t) = g_\theta\big(h_{t-\delta}\big).
 \end{equation}
 DeepCache \citep{ma2023deepcache} is the canonical example: it caches high-level U-Net features across denoising steps and updates only low-level features, yielding large speedups on Stable Diffusion and latent diffusion models with minimal quality loss. More recent diffusion caching schemes such as FasterCache \citep{lv2024fastercache} and TeaCache \citep{liu2024teacache} refine this idea for video models by exploiting redundancy in conditional/unconditional branches and timestep-aware feature reuse, respectively. Because these methods operate on the backbone architecture rather than the sampling distribution, they can be ported to flow-matching image and video generators with little or no modification.
 
@@ -58,29 +76,71 @@ Work that explicitly targets flow matching caching is still scarce. MeanCache \c
 
 Step distillation trains a student model that requires fewer sampling steps than its teacher. The prototypical approach is progressive distillation \citep{salimans2022progressive}, which iteratively halves the number of sampling steps by distilling a $2N$-step teacher into an $N$-step student. Given a teacher sampler $f_{\theta^*}(\cdot, \cdot; 2N)$ that produces an estimate after $2N$ function evaluations, progressive distillation minimizes
 \begin{equation}
-    \mathcal{L}_{\text{PD}}(\theta) = \mathbb{E}_{t, x_t} \Big[ \big\| f_\theta(x_t, t; N) - f_{\theta^*}(x_t, t; 2N) \big\|^2 \Big],
+    \mathcal{L}_{\text{PD}}(\theta) = \mathbb{E}_{t, z_t} \Big[ \big\| f_\theta(z_t, t; N) - f_{\theta^*}(z_t, t; 2N) \big\|^2 \Big],
     \label{eq:progressive-distillation}
 \end{equation}
-where $f_\theta(x_t, t; N)$ denotes the student output obtained with $N$ steps. Although effective for moderate speedups, progressive distillation is expensive---the distillation procedure must be repeated for each halving---and can suffer from error accumulation as the step budget shrinks.
+where $f_\theta(z_t, t; N)$ denotes the student output obtained with $N$ steps. Although effective for moderate speedups, progressive distillation is expensive---the distillation procedure must be repeated for each halving---and can suffer from error accumulation as the step budget shrinks.
 
-A closely related idea is rectified flow \citep{liu2022rectified}, which learns straight ODE trajectories by refitting the transport map between noise and data. It can be viewed as minimizing the same conditional objective as FM but with the goal of straightening the coupling:
-\begin{equation}
-    \mathcal{L}_{\text{RF}}(\theta) = \mathbb{E}_{t, x_0, x_1} \Big[ \big\| v_\theta\big((1-t)x_0 + t x_1, t\big) - (x_1 - x_0) \big\|^2 \Big].
-    \label{eq:rectified-flow}
-\end{equation}
-Repeated rectification yields increasingly straight flows, and when the flow becomes exactly straight a single Euler step gives exact transport. InstaFlow \citep{liu2023instaflow} combined rectified flow with distillation to produce the first Stable-Diffusion-quality one-step text-to-image model, demonstrating that flow-based distillation could outperform progressive distillation on standard benchmarks.
+A closely related idea is rectified flow \citep{liu2022rectified}, which learns straight ODE trajectories by refitting the transport map between noise and data. The base training objective is identical to the FM loss \cref{eq:fm-loss} under the OT path; the key contribution is \emph{rectification}: simulating the learned ODE to generate new $(\epsilon, x)$ pairs and then retraining on these pairs. This recursive procedure yields flows with increasingly straight paths, and when the flow becomes exactly straight a single Euler step gives exact transport. InstaFlow \citep{liu2023instaflow} combined rectified flow with distillation to produce the first Stable-Diffusion-quality one-step text-to-image model, demonstrating that flow-based distillation could outperform progressive distillation on standard benchmarks.
 
 These methods established the feasibility of few-step and one-step sampling, but they also revealed key limitations---expensive multi-stage training, dependence on high-quality teachers, and difficulty in scaling to high resolutions---that motivated the dedicated one-step flow matching methods discussed in \cref{sec:onestep}.
 
-\subsection{Related Methods}
-\label{subsec:related-methods}
+\subsection{Consistency Models}
+\label{subsec:consistency-models}
 
-Two closely related lines of work set the stage for modern one-step flow matching: consistency models, which enforce that all points on a trajectory map to the same endpoint, and flow-map distillation, which learns the general transport operator between arbitrary times.
+All velocity-based one-step methods surveyed in \Cref{sec:onestep} share a common intellectual ancestor: consistency models \citep{song2023consistency}. This section introduces the core ideas of consistency models and their generalization to consistency trajectory models, establishing the conceptual thread that leads from endpoint-prediction all the way to average-velocity training.
 
 \subsubsection{Consistency Models}
 
-Consistency Models (CMs) \citep{song2023consistency} train a network $f_\theta(x_t, t)$ that maps any point on a diffusion or flow trajectory directly to the trajectory's endpoint $x_0$. The defining consistency property requires that $f_\theta(x_t, t) = f_\theta(x_{t'}, t')$ whenever $x_t$ and $x_{t'}$ lie on the same trajectory. CMs demonstrated that one-step generation was possible without iterative sampling, but early variants struggled with scalability, multi-step error accumulation, and the need for careful curriculum training. These limitations motivated the consistency-flow-matching approaches discussed in \cref{sec:onestep}.
+Consistency Models (CMs) \citep{song2023consistency} train a neural network $f_\theta(z_t, t)$ to directly map a noisy state $z_t$ to the clean data sample $x$. The defining \emph{self-consistency} property requires that all points on the same probability-flow ODE trajectory map to the identical endpoint:
+\begin{equation}
+    f_\theta(z_t, t) = f_\theta(z_s, s) \quad \text{whenever } z_t, z_s \text{ lie on the same PF-ODE trajectory.}
+    \label{eq:cm-consistency}
+\end{equation}
+When $t = 1$ (pure noise), a single application $f_\theta(z_1, 1)$ yields a one-step generation. CMs can be trained either by distilling a pre-trained diffusion model or from scratch.
 
-\subsubsection{Flow-map distillation (out of scope)}
+The training objective enforces \cref{eq:cm-consistency} between nearby timesteps. Depending on how the interval $\Delta t = t - s$ is handled, two formulations exist:
 
-A related but distinct direction is flow-map distillation, which generalizes the consistency-model idea from endpoint prediction to learning the \emph{flow map} $f_\theta(x_t, t, s)$ that transports a state from time $t$ to any other time $s$ along the teacher ODE. Methods such as Align Your Flow \citep{sabour2025align} have scaled this idea to high-resolution image generation. Because flow-map methods operate on a different design axis than the velocity-based methods that are the focus of this survey, we do not discuss them in detail; we note them here for completeness and refer interested readers to the original works.
+\paragraph{Discrete-time consistency training.} For a finite interval $\Delta t > 0$, the discrete CT loss \citep{song2023consistency, geng2025cm} minimizes the difference between the model's output at $t$ and the output of an exponential moving average (EMA) model at a nearby $s$:
+\begin{equation}
+    \mathcal{L}_{\text{CT}_d}(\theta) = \mathbb{E}_{t, s, z_t} \Big[ \big\| f_\theta(z_t, t) - f_{\theta^-}(z_s, s) \big\|^2 \Big],
+    \label{eq:ct-discrete}
+\end{equation}
+where $0 \le s < t \le 1$, $z_s = z_t - \Delta t \cdot v_t$, and $f_{\theta^-} = \text{sg}(f_\theta)$ denotes the stop-gradient EMA parameters. While straightforward, discrete CT introduces discretization error proportional to $\Delta t$ and typically requires a carefully scheduled curriculum over $\Delta t$ for stability.
+
+\paragraph{Continuous-time consistency training.} Taking the limit $\Delta t \to 0$ eliminates discretization error and yields the continuous CT loss \citep{song2023consistency, lu2025ct}:
+\begin{equation}
+    \mathcal{L}_{\text{CT}_c}(\theta) = 2 \; \mathbb{E}_{t, z_t} \Big[ f_\theta(z_t, t)^{\top} \, \frac{d}{dt} f_{\theta^-}(z_t, t) \Big],
+    \label{eq:ct-continuous}
+\end{equation}
+where $\frac{d}{dt} f_{\theta^-}$ is the total time derivative of the EMA network output, computed via a Jacobian--vector product (JVP). The gradient of the continuous CT loss satisfies $\nabla_\theta \mathcal{L}_{\text{CT}_c} = \lim_{\Delta t \to 0} \nabla_\theta \mathcal{L}_{\text{CT}_d} / \Delta t$, linking the two formulations \citep{song2023consistency}.
+
+\subsubsection{Consistency Trajectory Models}
+\label{subsec:ctm}
+
+A limitation of standard CMs is that they only learn the endpoint map $z_t \mapsto x$, making it difficult to interpolate between time steps for multi-step refinement. Consistency Trajectory Models (CTMs) \citep{kim2024ctm} address this by learning a \emph{velocity} parameterization $u_\theta(z_t, r, t)$ that transports from any time $t$ to any earlier time $r$ (with $0 \le r \le t \le 1$). The core insight is that predicting the average velocity over $[r, t]$ rather than the endpoint provides a more flexible parameterization that supports both one-step and multi-step generation.
+
+\paragraph{The common design pattern.} All velocity-based one-step methods share a unifying structure: they combine \textbf{(i)} a flow matching loss that grounds predictions in the true conditional velocity, and \textbf{(ii)} a consistency condition enforced via stop-gradient EMA targets. Table~\ref{tab:cm-lineage} summarizes how each method instantiates this pattern.
+
+\begin{table}[t]
+  \centering
+  \small
+  \caption{Common design pattern across velocity-based one-step methods. Every method combines flow matching (FM) with a consistency condition enforced via stop-gradient. They differ in how the consistency target is constructed.}
+  \label{tab:cm-lineage}
+  \begin{tabular}{@{}l c c c@{}}
+    \toprule
+    Method & FM supervision & Consistency target & Requires JVP \\
+    \midrule
+    Consistency-FM \citep{zhou2024consistency}   & $\checkmark$ (velocity)     & velocity EMA at $z_{t+\Delta t}$  & No \\
+    Shortcut Models \citep{frans2024shortcut}    & $\checkmark$ (shortcut)     & self-consistent two-step bootstrap & No \\
+    Mean Flows \citep{geng2025mean}              & $\checkmark$ (border-case)  & MeanFlow Identity                  & Yes \\
+    AlphaFlow \citep{zhang2025alphaflow}         & $\checkmark$ (curriculum)   & $\alpha$-interpolated target       & Yes (at $\alpha\to 0$) \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\paragraph{Velocity vs.\ endpoint parameterization.} All velocity-parameterized methods operate on a richer output space than standard CMs. Given an average velocity prediction $u_\theta(z_t, r, t)$, the predicted state at time $r$ is $z_r = z_t - (t-r) \, u_\theta(z_t, r, t)$. This subsumes the endpoint parameterization: setting $r = 0$ and $u_\theta = (z_t - f_\theta)/t$ recovers the standard CM formulation. Conversely, the trajectory flow matching loss $\mathcal{L}_{\text{TFM}}$ at $r = t$ reduces to vanilla flow matching \citep{zhang2025alphaflow}, making it possible to train the same model for both instantaneous and average velocity prediction.
+
+\paragraph{From CMs to AlphaFlow.} The continuous-time consistency loss \cref{eq:ct-continuous} reappears in the MeanFlow decomposition: the $\mathcal{L}_{\text{TC}_c}$ term is precisely a $(t-r)$-reweighted continuous CT loss without a boundary condition (\cref{subsec:alphaflow}). The gradient conflict between $\mathcal{L}_{\text{TFM}}$ and $\mathcal{L}_{\text{TC}_c}$ identified by \citet{zhang2025alphaflow} is the same conflict that has historically complicated consistency training; their AlphaFlow curriculum resolves it by interpolating between the two extremes. The Shortcut Model objective corresponds to $\alpha = 1/2$ in the AlphaFlow family, illustrating that discrete-time self-consistency bootstrapping is a midpoint between pure FM and pure CM training.
+
+This lineage\ --- CM $\to$ CTM $\to$ Shortcut / MeanFlow $\to$ AlphaFlow\ --- is the conceptual backbone of this survey. The methods in \Cref{sec:onestep} each instantiate a different point on the spectrum from confidence-heavy FM training to consistency-heavy self-bootstrapping, all unified by the stop-gradient mechanism that originated with consistency models.
