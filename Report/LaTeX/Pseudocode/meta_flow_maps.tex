@@ -1,9 +1,9 @@
-\begin{algorithm}[t]
+\begin{algorithm}[htbp]
 \caption{Meta Flow Map (MFM) Training}
 \label{alg:meta_flow_maps}
 \begin{algorithmic}[1]
-\Require Data $x$, noise $\epsilon$, meta flow map $X_{\text{mfm}}$, optimizer
-\State Sample $s, w, u \sim \text{Uniform}(0,1)$ with $s < w < u$
+\Require Data $x \sim p_{\text{data}}$, noise $\epsilon \sim \mathcal{N}(0,I)$, meta flow map $X_{\text{mfm}}$, optimizer
+\State Sample $s, w, u \sim \mathcal{U}[0,1]$ with $s < w < u$
 \State Build stochastic interpolants $I_s, I_w, I_u$ with shared noise $\epsilon$
 \State $v_{u,u} \gets X_{\text{mfm}}(I_u, u, u)$ \Comment{Instantaneous velocity (diagonal)}
 \State $\dot{I}_u \gets \dot{\alpha}_u \, x + \dot{\beta}_u \, \epsilon + \dot{\gamma}_u \, \xi$ \Comment{$\xi$ = extra randomness}

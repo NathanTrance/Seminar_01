@@ -1,9 +1,9 @@
-\begin{algorithm}[t]
+\begin{algorithm}[htbp]
 \caption{MeanFlow Training}
 \label{alg:mean_flows}
 \begin{algorithmic}[1]
-\Require Data $x$, noise $\epsilon$, average-velocity network $u_\theta$, optimizer
-\State Sample $r, t \sim \text{Uniform}(0,1)$ with $r < t$
+\Require $x \sim p_{\text{data}}$, $\epsilon \sim \mathcal{N}(0,I)$, average-velocity network $u_\theta$, optimizer
+\State Sample $r, t \sim \mathcal{U}[0,1]$ with $r < t$
 \State $z_t \gets (1 - t) \, x + t \, \epsilon$ \Comment{Interpolant}
 \State $v \gets \epsilon - x$ \Comment{Instantaneous conditional velocity}
 \State $u_{\text{pred}} \gets u_\theta(z_t, r, t)$

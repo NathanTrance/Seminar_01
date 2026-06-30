@@ -3,7 +3,7 @@
 
 Having reviewed the methodological foundations of one-step flow matching, we now turn to the empirical results obtained under the protocol described in \Cref{sec:experiments}. \Cref{tab:imagenet-results} reports 1-NFE and 2-NFE FID and FDD scores, parameter counts, and training epochs for the four surveyed velocity-based methods and a set of representative baselines. MeanFlow and AlphaFlow numbers are taken from \citet{zhang2025alphaflow}; Consistency-FM and Shortcut results are left as placeholders because our runs are not yet complete.
 
-\begin{table}[t]
+\begin{table}[htbp]
   \centering
   \small
   \caption{ImageNet-1K 256$\times$256 class-conditional generation results. FID and FDD scores are reported for 1-NFE and 2-NFE sampling; lower is better.}
@@ -35,7 +35,7 @@ Having reviewed the methodological foundations of one-step flow matching, we now
   \end{tabular}
 \end{table}
 
-\begin{figure}[t]
+\begin{figure}[htbp]
   \centering
   \includegraphics[width=0.95\linewidth]{Figures/figure_terminal_velocity.pdf}
   \caption{Placeholder: class-conditional ImageNet-1K 256$\times$256 samples generated with 1 NFE. From left to right: CFM baseline, Consistency-FM, Shortcut, MeanFlow, and AlphaFlow. Replace with actual generated samples.}

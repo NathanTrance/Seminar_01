@@ -1,9 +1,9 @@
-\begin{algorithm}[t]
+\begin{algorithm}[htbp]
 \caption{Shortcut Model Training}
 \label{alg:shortcut_models}
 \begin{algorithmic}[1]
-\Require Data $x$, noise $\epsilon$, shortcut network $s_\theta$, optimizer, self-consistency ratio $k$
-\State Sample $r, t \sim \text{Uniform}(0,1)$ with $r < t$
+\Require $x \sim p_{\text{data}}$, $\epsilon \sim \mathcal{N}(0,I)$, shortcut network $s_\theta$, optimizer, self-consistency ratio $k$
+\State Sample $r, t \sim \mathcal{U}[0,1]$ with $r < t$
 \State $z_t \gets (1 - t) \, x + t \, \epsilon$ \Comment{Interpolant at later time}
 \State $v \gets \epsilon - x$ \Comment{Conditional velocity}
 \If{flow-matching base case ($r = t$)}

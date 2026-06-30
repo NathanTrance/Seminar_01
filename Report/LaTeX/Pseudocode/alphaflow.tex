@@ -1,9 +1,9 @@
-\begin{algorithm}[t]
+\begin{algorithm}[htbp]
 \caption{AlphaFlow Training}
 \label{alg:alphaflow}
 \begin{algorithmic}[1]
-\Require Data $x$, noise $\epsilon$, average-velocity network $u_\theta$, iteration $k$, schedule $\alpha(k)$, optimizer
-\State Sample $r, t \sim \text{Uniform}(0,1)$ with $r < t$
+\Require $x \sim p_{\text{data}}$, $\epsilon \sim \mathcal{N}(0,I)$, average-velocity network $u_\theta$, iteration $k$, schedule $\alpha(k)$, optimizer
+\State Sample $r, t \sim \mathcal{U}[0,1]$ with $r < t$
 \State $\alpha \gets \alpha(k)$; \quad $s \gets \alpha r + (1-\alpha) t$
 \State $z_t \gets (1 - t) \, x + t \, \epsilon$ \Comment{Interpolant}
 \State $v \gets \epsilon - x$ \Comment{Conditional velocity}

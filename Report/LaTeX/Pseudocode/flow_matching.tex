@@ -1,9 +1,9 @@
-\begin{algorithm}[t]
+\begin{algorithm}[htbp]
 \caption{Flow Matching Training}
 \label{alg:flow_matching}
 \begin{algorithmic}[1]
-\Require Data $x$, noise $\epsilon$, velocity network $v_\theta$, optimizer
-\State Sample $t \sim \text{Uniform}(0,1)$
+\Require $x \sim p_{\text{data}}$, $\epsilon \sim \mathcal{N}(0,I)$, velocity network $v_\theta$, optimizer
+\State Sample $t \sim \mathcal{U}[0,1]$
 \State $z_t \gets (1 - t) \, x + t \, \epsilon$
 \State $v_t \gets \epsilon - x$ \Comment{Conditional velocity for OT path}
 \State $v_{\text{pred}} \gets v_\theta(z_t, t)$

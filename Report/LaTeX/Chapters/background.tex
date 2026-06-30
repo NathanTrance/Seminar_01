@@ -25,7 +25,7 @@ Flow Matching (FM) \citep{lipman2022flow} is a simulation-free framework for tra
     \label{eq:fm-loss}
 \end{equation}
 
-Although the true marginal velocity field is the expectation of $v_t$ over all $(\epsilon, x)$ pairs consistent with $z_t$---which is intractable to compute directly---Conditional Flow Matching (CFM) sidesteps this difficulty by using the conditional objective \cref{eq:fm-loss} directly. This objective shares the same gradient with respect to $\theta$ as the intractable marginal objective \citep{lipman2022flow}, so its minimizer equals the true marginal velocity field.
+Although the true marginal velocity field is the expectation of $v_t$ over all $(\epsilon, x)$ pairs consistent with $z_t$---which is intractable to compute directly---Conditional Flow Matching (CFM) sidesteps this difficulty by using the conditional objective \cref{eq:fm-loss} directly. This objective shares the same gradient with respect to $\theta$ as the intractable marginal objective \citep{lipman2022flow}, so its minimizer equals the true marginal velocity field. \Cref{alg:flow_matching} gives the basic training loop.
 
 A particularly important choice is the \emph{optimal transport (OT) path}, where $\gamma_t = 1-t$ and $\delta_t = t$. This yields the straight-line interpolant
 \begin{equation}
@@ -43,9 +43,9 @@ Flow matching thus provides the training backbone for all subsequent methods in 
 
 \input{Pseudocode/flow_matching.tex}
 
-\begin{figure}[t]
+\begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.9\linewidth]{Figures/2_flow_matching_diagram.png}
+  \includegraphics[width=\linewidth]{Figures/2_flow_matching_diagram.png}
   \caption{The Flow Matching blueprint. (a) The goal is to find a flow mapping samples from a known noise distribution into samples from an unknown target data distribution. (b) To do so, design a time-continuous probability path $(p_t)_{0\le t\le 1}$ interpolating between data and noise. (c) During training, use regression to estimate the velocity field $v_t$ known to generate $p_t$. (d) To draw a novel target sample $x \sim p_{\text{data}}$, integrate the estimated velocity field from $t = 1$ back to $t = 0$, where $z_1 = \epsilon \sim \mathcal{N}(0,I)$ is a novel noise sample.}
   \label{fig:flow-matching-blueprint}
 \end{figure}
@@ -122,7 +122,7 @@ A limitation of standard CMs is that they only learn the endpoint map $z_t \maps
 
 \paragraph{The common design pattern.} All velocity-based one-step methods share a unifying structure: they combine \textbf{(i)} a flow matching loss that grounds predictions in the true conditional velocity, and \textbf{(ii)} a consistency condition enforced via stop-gradient EMA targets. Table~\ref{tab:cm-lineage} summarizes how each method instantiates this pattern.
 
-\begin{table}[t]
+\begin{table}[htbp]
   \centering
   \small
   \caption{Common design pattern across velocity-based one-step methods. Every method combines flow matching (FM) with a consistency condition enforced via stop-gradient. They differ in how the consistency target is constructed.}

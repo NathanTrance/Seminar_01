@@ -1,9 +1,9 @@
-\begin{algorithm}[t]
+\begin{algorithm}[htbp]
 \caption{Consistency Flow Matching Training}
 \label{alg:consistency_fm}
 \begin{algorithmic}[1]
-\Require Data $x$, noise $\epsilon$, velocity network $v_\theta$, EMA model $v_{\theta^-}$, optimizer, hyperparameter $\lambda$
-\State Sample $t \sim \text{Uniform}(0, 1 - \Delta t)$
+\Require $x \sim p_{\text{data}}$, $\epsilon \sim \mathcal{N}(0,I)$, velocity network $v_\theta$, EMA model $v_{\theta^-}$, optimizer, hyperparameter $\lambda$
+\State Sample $t \sim \mathcal{U}[0, 1 - \Delta t]$
 \State $z_t \gets (1 - t) \, x + t \, \epsilon$
 \State $z_{t+\Delta t} \gets (1 - (t+\Delta t)) \, x + (t+\Delta t) \, \epsilon$
 \State $v_t \gets v_\theta(z_t, t)$

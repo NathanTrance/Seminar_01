@@ -39,11 +39,11 @@ These estimators enable two paradigms of control:
     \item \textbf{Training-time fine-tuning:} The value gradient defines a regression target for updating the model parameters, permanently aligning the model with the reward function.
 \end{itemize}
 
-Empirically, MFMs achieve competitive sample quality while markedly reducing computation for both steering and fine-tuning, outperforming Best-of-1000 baselines on ImageNet across multiple reward functions at a fraction of the compute.
+Empirically, MFMs achieve competitive sample quality while markedly reducing computation for both steering and fine-tuning, outperforming Best-of-1000 baselines on ImageNet across multiple reward functions at a fraction of the compute. \Cref{alg:meta_flow_maps} outlines the training procedure.
 
 \input{Pseudocode/meta_flow_maps.tex}
 
-\begin{figure}[t]
+\begin{figure}[htbp]
   \centering
   \includegraphics[width=0.8\linewidth]{Figures/figure_meta_flow_maps.pdf}
   \caption{Placeholder: Diagram of a Meta Flow Map showing how a single noise input $\epsilon$ and an intermediate state $(t, x)$ are mapped to a posterior sample $x_1 \sim p_{1|t}(\cdot | x)$. Replace with a figure illustrating the stochastic flow map and reward alignment pipeline.}
